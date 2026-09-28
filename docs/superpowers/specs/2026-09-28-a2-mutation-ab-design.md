@@ -105,7 +105,7 @@ Each seed contributes one value per metric; g = 1…G.
 - **A collapses:** in ≥ 4/6 seeds, A's differential-step RMS drops below 1% of its generation-1 value by generation 80.
 - **B stays alive:** in ≥ 4/6 seeds, B's differential-step RMS stays above 1% of its generation-1 value at generation 80.
 - **H4 is measurable:** ≥ 20 parent-improving children per arm per seed.
-- **G_final:** the smallest multiple of 10 (at least 40) at which both arms' mean best-so-far improved by less than 0.005 m over the preceding 15 generations. If no such point exists, G_final = 80, reported as capped.
+- **G_final:** the smallest multiple of 10 (at least 40) at which both arms' mean best-so-far improved by less than 0.005 m over the preceding 15 generations. The assignment asks for the plateau, not a fixed generation count, to be the stopping criterion. If no plateau appears by generation 80, the final run uses G = 120, and the same plateau check is applied post hoc to the final curves and reported.
 - **Fallbacks:** if speed fails, reduce the final seeds (minimum 5) before shortening episodes. If A does not collapse, report to the team before the final run and reframe "collapse" as "step shrinkage".
 - **Final run:** seeds 800–809 (fewer only if speed requires), G = G_final, otherwise identical configuration.
 
@@ -127,6 +127,26 @@ Unit tests:
 - the analysis refuses incomplete runs
 
 Smoke test: seed 900, population 4, G = 2, 0.2 s episodes, run end to end, then the analysis. A 15 s benchmark of 12 episodes measures the wall time per episode before the POC.
+
+## Assignment 2 compliance (Assignment2.html, sections 5–8)
+
+| Requirement | How this design meets it |
+|---|---|
+| EA built on `ariel.ec`; own search design, no black-box optimiser | `Individual`/`Population`/`EAOperation` from `ariel.ec`; all operators are written in `operators.py`; no nevergrad or CMA-ES library |
+| No changes to `src/ariel` (fraud otherwise) | All code lives in `assignments/assignment_2/mutation_ab/`. A test asserts that `git diff --quiet -- src/ariel` passes. Terrain seeding is done by subclassing in our own code. We never call `BaseWorld.store_to_xml` or `compile_terrains.py` (both write into `src/ariel/.../pre_compiled`), and we pass `load_precompiled=False` so a stray precompiled XML cannot silently replace the seeded terrain |
+| Fixed John Set body | `john_set.gecko()` for the whole assignment |
+| Fixed permitted world, not SimpleTiltedWorld | `OlympicArena`. Unseeded, its rugged heightmap differs on every build, so the Perlin seed is pinned to 42 and the heightmap and model hashes are checked per run |
+| NN controller, not CPG | A 29-6-6 tanh MLP. The sin/cos clock is an *input* to the network (the assignment points out that a controller needs a rhythm signal); there are no oscillator dynamics |
+| Fitness: final ground-plane Euclidean distance to a fixed target, lower is better | Core `qpos[0:2]` at the end of the episode vs (2, 0), as in `A2_template_2026.fitness_function` |
+| At least 5 independent repeats with mean and spread | 10 final seeds (minimum 5 under the fallback); mean (sample SD) reported |
+| Baseline at the same evaluation budget | Random search with exactly 12 + 11·G evaluations per seed |
+| Line plot across generations showing average and std over runs | Fig. 1 right: mean ± sample SD best-so-far per generation, for both arms and random search |
+| Tip: plateau, not a fixed generation count, as the stopping criterion | G_final is taken from the plateau observed in the POC and checked post hoc in the final run (see G_final) |
+| Tip: test small first | Smoke test (population 4, G = 2, 0.2 s) and a 12-episode 15 s benchmark before the POC |
+| Tip: seed parametrised, one invocation per configuration | `run.py --seeds 800-809 --generations G --workers N`; the seed never appears in code |
+| Tip: organised outputs | One directory per (seed, arm), immutable, with a `COMPLETE` marker and config/commit hashes |
+| Submission: `groupnumber.zip` containing the report PDF and code | The runner and analysis are self-contained in one directory, with a README giving exact commands, so they can be copied into the zip unchanged |
+| Report: at most 6 pages, GECCO19 | Out of scope for the code; the figures are sized for a two-column layout |
 
 ## Out of scope
 
