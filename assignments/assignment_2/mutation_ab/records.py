@@ -4,6 +4,7 @@ import json
 import platform
 import subprocess
 import traceback
+from importlib.metadata import version
 from pathlib import Path
 
 import mujoco
@@ -51,7 +52,11 @@ class RunRecorder:
             "config_hash": cfg.config_hash(),
             "hashes": hashes,
             "git": git_commit(),
-            "versions": {"python": platform.python_version(), "mujoco": mujoco.__version__},
+            "versions": {
+                "python": platform.python_version(),
+                "mujoco": mujoco.__version__,
+                "ariel": version("ariel"),
+            },
         }
         (self.directory / "config.json").write_text(json.dumps(meta, indent=2))
         self._children = (self.directory / "children.jsonl").open("w")
@@ -83,6 +88,11 @@ class RunRecorder:
             "error": repr(error),
             "traceback": "".join(traceback.format_exception(error)),
         }
+        genome = getattr(error, "genome", None)
+        if genome is not None:
+            genome_list = np.asarray(genome, dtype=np.float64).tolist()
+            report["genome"] = genome_list
+            report["genome_sha1"] = genome_sha1(genome_list)
         (self.directory / "FAILED.json").write_text(json.dumps(report, indent=2))
 
     def _close(self) -> None:

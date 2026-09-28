@@ -37,6 +37,7 @@ def test_complete_run_writes_all_artifacts(tmp_path):
     assert config["config_hash"] == RunConfig(seed=1).config_hash()
     assert config["hashes"] == HASHES
     assert "commit" in config["git"]
+    assert config["versions"]["ariel"]
     assert len((run / "children.jsonl").read_text().splitlines()) == 2
     assert (run / "generations.csv").read_text().splitlines()[0].split(",") == list(GENERATION_FIELDS)
     assert np.load(run / "adults.npz")["adults"].shape == (2, 4, 222)

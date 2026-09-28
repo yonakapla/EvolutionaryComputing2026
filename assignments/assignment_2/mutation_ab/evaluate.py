@@ -16,7 +16,9 @@ UNSTABLE_WARNINGS = (
 
 
 class UnstableSimulation(RuntimeError):
-    pass
+    def __init__(self, message: str, genome: np.ndarray | None = None) -> None:
+        super().__init__(message)
+        self.genome = genome
 
 
 @dataclass(frozen=True)
@@ -43,7 +45,7 @@ def evaluate(genome: np.ndarray, model: mj.MjModel, cfg: RunConfig) -> EvalResul
     # MuJoCo silently zeroes bad controls and resets diverged states, so the endpoint would look valid.
     diverged = any(data.warning[int(warning)].number > 0 for warning in UNSTABLE_WARNINGS)
     if not np.all(np.isfinite(state)) or diverged:
-        raise UnstableSimulation(f"unstable episode at t={data.time:.3f}s")
+        raise UnstableSimulation(f"unstable episode at t={data.time:.3f}s", genome=np.asarray(genome, dtype=float))
 
     final_xy = (float(data.qpos[0]), float(data.qpos[1]))
     distance = float(np.hypot(final_xy[0] - cfg.target_xy[0], final_xy[1] - cfg.target_xy[1]))

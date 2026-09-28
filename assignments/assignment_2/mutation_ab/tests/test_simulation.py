@@ -1,3 +1,4 @@
+import json
 import multiprocessing
 
 import mujoco as mj
@@ -7,6 +8,7 @@ import pytest
 from mutation_ab.config import RunConfig
 from mutation_ab.controller import N_INPUTS, N_OUTPUTS, act, genome_length, observe, unpack
 from mutation_ab.evaluate import UnstableSimulation, evaluate
+from mutation_ab.records import RunRecorder, genome_sha1
 from mutation_ab.world import build_model, terrain_fingerprint
 
 SHORT = RunConfig(seed=1, duration=0.2)
@@ -54,8 +56,22 @@ def test_zero_controller_stays_near_spawn(model):
 def test_nan_genome_raises_instead_of_scoring(model):
     genome = np.zeros(222)
     genome[0] = np.nan
-    with pytest.raises(UnstableSimulation):
+    with pytest.raises(UnstableSimulation) as excinfo:
         evaluate(genome, model, SHORT)
+    assert np.array_equal(excinfo.value.genome, genome, equal_nan=True)
+
+
+def test_failed_recording_carries_the_offending_genome(tmp_path, model):
+    genome = np.zeros(222)
+    genome[0] = np.nan
+    try:
+        evaluate(genome, model, SHORT)
+    except UnstableSimulation as error:
+        RunRecorder(tmp_path / "run", SHORT, "difference", {"terrain_sha1": "t", "model_sha1": "m"}).fail(error)
+
+    report = json.loads((tmp_path / "run" / "FAILED.json").read_text())
+    assert report["genome"][0] != report["genome"][0]  # nan
+    assert report["genome_sha1"] == genome_sha1(genome)
 
 
 def test_terrain_is_identical_across_processes():
