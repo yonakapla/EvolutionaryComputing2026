@@ -43,8 +43,13 @@ def _read_generations(path: Path) -> dict[str, np.ndarray]:
     return {key: np.array([float(row[key]) for row in rows]) for key in rows[0]}
 
 
-def load_runs(root: Path) -> dict[int, dict[str, ArmRun]]:
-    seed_dirs = sorted(Path(root).glob("seed_*"), key=lambda p: int(p.name.split("_")[1]))
+def load_runs(root: Path, exclude: set[int] | None = None) -> dict[int, dict[str, ArmRun]]:
+    exclude = exclude or set()
+    seed_dirs = [
+        d
+        for d in sorted(Path(root).glob("seed_*"), key=lambda p: int(p.name.split("_")[1]))
+        if int(d.name.split("_")[1]) not in exclude
+    ]
     if not seed_dirs:
         raise IncompleteRuns(f"no seed directories under {root}")
     missing = [str(d / arm) for d in seed_dirs for arm in ARMS if not (d / arm / "COMPLETE").exists()]
@@ -53,6 +58,7 @@ def load_runs(root: Path) -> dict[int, dict[str, ArmRun]]:
 
     runs: dict[int, dict[str, ArmRun]] = {}
     reference = None
+    reference_hashes = None
     for seed_dir in seed_dirs:
         seed = int(seed_dir.name.split("_")[1])
         runs[seed] = {}
@@ -62,8 +68,11 @@ def load_runs(root: Path) -> dict[int, dict[str, ArmRun]]:
             shared = {k: v for k, v in meta["config"].items() if k != "seed"}
             if reference is None:
                 reference = shared
+                reference_hashes = meta["hashes"]
             elif shared != reference:
                 raise ValueError(f"{run_dir} uses a different configuration")
+            elif meta["hashes"] != reference_hashes:
+                raise ValueError(f"{run_dir} uses different hashes {meta['hashes']} != {reference_hashes}")
             children = [json.loads(line) for line in (run_dir / "children.jsonl").read_text().splitlines()]
             runs[seed][arm] = ArmRun(seed, arm, _read_generations(run_dir / "generations.csv"), children, meta["config"])
     return runs
@@ -189,7 +198,8 @@ def go_no_go(runs, *, final_seeds: int, workers: int, deadline: date, now: datet
 
     walls = [c["wall_s"] for s in seeds for arm in ARMS for c in runs[s][arm].children if c["kind"] != "init"]
     per_seed = config["population_size"] + (config["population_size"] - 1) * g_final * len(ARMS)
-    hours = final_seeds * per_seed * float(np.mean(walls)) / workers / 3600
+    seed_batches = math.ceil(final_seeds / workers)
+    hours = seed_batches * per_seed * float(np.mean(walls)) / 3600
     finish = now + timedelta(hours=hours)
 
     diff = {s: seed_metrics(runs[s][ARM_DIFFERENCE]) for s in seeds}
@@ -202,7 +212,7 @@ def go_no_go(runs, *, final_seeds: int, workers: int, deadline: date, now: datet
         "speed": {
             "passed": finish.date() <= deadline,
             "value": {"hours": hours, "finish": finish.isoformat(timespec="minutes"), "mean_eval_s": float(np.mean(walls))},
-            "rule": f"{final_seeds} seeds x {per_seed} evals on {workers} workers finish by {deadline}",
+            "rule": f"ceil({final_seeds} seeds / {workers} workers) x {per_seed} evals per seed finish by {deadline}",
         },
         "a_collapses": {
             "passed": collapsed >= needed,
@@ -242,6 +252,29 @@ def _band(ax, runs, arm: str, key: str, normalise: bool = False, log: bool = Fal
         ax.set_yscale("log")
 
 
+def _step_panel(ax, twin, runs, arm: str) -> float:
+    seeds = sorted(runs)
+    curves = np.array([runs[s][arm].generations["diff_proposal_rms"] for s in seeds])
+    x = runs[seeds[0]][arm].generations["generation"]
+    positive = np.where(curves > 0, curves, np.nan)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="All-NaN (slice|axis) encountered")
+        median = np.nanmedian(positive, axis=0)
+        q1 = np.nanpercentile(positive, 25, axis=0)
+        q3 = np.nanpercentile(positive, 75, axis=0)
+    ax.plot(x, median, color=COLORS[arm], label=LABELS[arm])
+    ax.fill_between(x, q1, q3, color=COLORS[arm], alpha=0.2, linewidth=0)
+    collapsed_fraction = np.mean(curves == 0, axis=0)
+    twin.plot(x, collapsed_fraction, color=COLORS[arm], linestyle=":", linewidth=1, alpha=0.6)
+    return float(median[1]) if median.size > 1 else float("nan")
+
+
+def _step_panel_ylim_bottom(gen1_medians: list[float]) -> float:
+    finite = [m for m in gen1_medians if math.isfinite(m) and m > 0]
+    baseline = max(finite) if finite else 1e-2
+    return 1e-4 * baseline
+
+
 def figures(runs, out: Path) -> None:
     ea_arms = (ARM_DIFFERENCE, ARM_MIXTURE)
     fig, (left, right) = plt.subplots(1, 2, figsize=(7.0, 2.6))
@@ -251,6 +284,7 @@ def figures(runs, out: Path) -> None:
         _band(right, runs, arm, "best_so_far")
     left.set(xlabel="generation", ylabel="genotype diversity / initial")
     right.set(xlabel="generation", ylabel="best distance to target (m)")
+    left.legend(frameon=False, fontsize=7)
     right.legend(frameon=False, fontsize=7)
     fig.tight_layout()
     for suffix in ("pdf", "png"):
@@ -258,16 +292,39 @@ def figures(runs, out: Path) -> None:
     plt.close(fig)
 
     fig, (left, right) = plt.subplots(1, 2, figsize=(7.0, 2.6))
+    twin = left.twinx()
+    gen1_medians = []
     for arm in ea_arms:
-        _band(left, runs, arm, "diff_proposal_rms", log=True)
+        gen1_medians.append(_step_panel(left, twin, runs, arm))
         _band(right, runs, arm, "unique")
-    left.set(xlabel="generation", ylabel="differential step RMS")
+    left.set_yscale("log")
+    left.set_ylim(bottom=_step_panel_ylim_bottom(gen1_medians))
+    left.set(xlabel="generation", ylabel="differential step RMS (median, IQR)")
+    twin.set_ylabel("fraction of seeds collapsed to 0", fontsize=7)
+    twin.set_ylim(0, 1)
+    left.legend(frameon=False, fontsize=7)
     right.set(xlabel="generation", ylabel="unique genomes")
     right.legend(frameon=False, fontsize=7)
     fig.tight_layout()
     for suffix in ("pdf", "png"):
         fig.savefig(out / f"fig2.{suffix}", dpi=200)
     plt.close(fig)
+
+
+H4_SUMMARY_KEYS = ("improve_rate_difference", "improve_rate_gaussian", "improve_rate", "useful_rate", "mean_gain")
+
+
+def h4_summary(per_seed: list[dict]) -> list[dict]:
+    rows = []
+    for arm in (ARM_DIFFERENCE, ARM_MIXTURE):
+        arm_rows = [row for row in per_seed if row["arm"] == arm]
+        summary = {"arm": arm}
+        for key in H4_SUMMARY_KEYS:
+            values = np.array([row[key] for row in arm_rows if row[key] is not None], dtype=float)
+            summary[f"{key}_mean"] = float(np.mean(values)) if values.size else float("nan")
+            summary[f"{key}_sd"] = float(np.std(values, ddof=1)) if values.size > 1 else float("nan")
+        rows.append(summary)
+    return rows
 
 
 def _write_csv(path: Path, rows: list[dict]) -> None:
@@ -285,9 +342,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--final-seeds", type=int, default=10)
     parser.add_argument("--workers", type=int, default=10)
     parser.add_argument("--deadline", type=date.fromisoformat, default=date(2026, 10, 8))
+    parser.add_argument("--exclude", default="", help="comma-separated seeds to leave out, e.g. a seed with a FAILED arm")
     args = parser.parse_args(argv)
 
-    runs = load_runs(args.root)
+    exclude = {int(seed) for seed in args.exclude.split(",") if seed.strip()}
+    runs = load_runs(args.root, exclude=exclude)
     out = args.root / "analysis"
     out.mkdir(exist_ok=True)
 
@@ -301,11 +360,14 @@ def main(argv: list[str] | None = None) -> int:
         if row["arm"] != ARM_RANDOM
     ]
     _write_csv(out / "h4.csv", h4)
-    report = {"seeds": sorted(runs), "tests": statistical_tests(runs)}
+    report = {"seeds": sorted(runs), "excluded_seeds": sorted(exclude), "tests": statistical_tests(runs)}
     if args.poc:
         report["go_no_go"] = go_no_go(
             runs, final_seeds=args.final_seeds, workers=args.workers, deadline=args.deadline, now=datetime.now()
         )
+        report["exploratory"] = True
+        report["exploratory_note"] = "POC p-values are exploratory: small sample, calibration run, not confirmatory evidence."
+        _write_csv(out / "h4_summary.csv", h4_summary(per_seed))
     (out / "analysis.json").write_text(json.dumps(report, indent=2, default=str))
     figures(runs, out)
 
@@ -316,6 +378,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{verdict}  {name}: {criterion['value']}  ({criterion['rule']})")
         g = report["go_no_go"]
         print(f"G_final = {g['g_final']} ({'plateau' if g['plateau_found'] else 'no plateau by POC end; use cap'})")
+        print(f"NOTE: {report['exploratory_note']}")
     return 0
 
 
