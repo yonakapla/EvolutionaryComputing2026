@@ -11,6 +11,22 @@ A two-arm A/B study for Assignment 2 (targeted locomotion by neuroevolution), in
 
 **Motivation (course framing).** Differential mutation takes its step sizes from the spread of the population, so the steps shrink as the population converges (ch06 part 2, pp. 6 and 39). Small panmictic populations drift to one peak and converge prematurely (ch05, pp. 22, 25, 29). With a population of 12 these two properties predict that the steps collapse to zero. Mutation can supply new material and restore diversity (ch06 part 1, p. 39). The course's diversity-preservation methods act on population structure; B acts on the variation operator.
 
+**Literature motivation for this exact A/B.**
+- **Why A:** DE's step sizes come from the population's spread, so none need tuning (Storn & Price 1997). The same property is a known weakness. DE can stagnate (Lampinen & Zelinka 2000), and the expected population variance decreases for some F, Cr and NP (Zaharie 2002). Storn & Price recommend NP = 5–10·D, which is 1,110–2,220 here. Expensive evaluations force NP = 12, the micro-DE regime where premature convergence and stagnation are central (Parsopoulos 2009; Salehinejad et al. 2017). Differential mutation is therefore the operator whose failure our setting predicts.
+- **Why B:** known remedies inject randomness or adaptivity:
+  - dither and jitter (Price et al. 2005);
+  - self-adaptive F and Cr: jDE (Brest et al. 2006), SHADE (Tanabe & Fukunaga 2013);
+  - strategy pools: SaDE (Qin et al. 2009);
+  - archives of discarded solutions: JADE (Zhang & Sanderson 2009);
+  - restarts (Parsopoulos 2009);
+  - random vectors in the mutation (Salehinejad et al. 2017);
+  - opposition-based sampling (Rahnamayan et al. 2008);
+  - surveys: Das & Suganthan 2011; Das et al. 2016.
+
+  B is the simplest "inject randomness" variant: one parameter, no extra state. 90% of steps remain pure differential mutation, which makes the effect attributable (H4).
+- **Contribution:** not the fix, but the measurement in expensive small-population neuroevolution: the collapse observed directly, and the attribution of improvements to proposal type. Comparing remedies at an equal budget is future work.
+- **Full references** (all verified): Storn & Price, J. Global Optim. 11(4):341–359, 1997, doi:10.1023/A:1008202821328 · Lampinen & Zelinka, MENDEL 2000, 76–83 · Zaharie, MENDEL 2002, 62–67 · Brest et al., IEEE TEVC 10(6):646–657, 2006, doi:10.1109/TEVC.2006.872133 · Qin et al., IEEE TEVC 13(2):398–417, 2009, doi:10.1109/TEVC.2008.927706 · Zhang & Sanderson, IEEE TEVC 13(5):945–958, 2009, doi:10.1109/TEVC.2009.2014613 · Tanabe & Fukunaga, IEEE CEC 2013, 71–78, doi:10.1109/CEC.2013.6557555 · Parsopoulos, GECCO 2009, 531–538, doi:10.1145/1569901.1569975 · Salehinejad et al., Appl. Soft Comput. 52:812–833, 2017, doi:10.1016/j.asoc.2016.09.042 · Rahnamayan et al., IEEE TEVC 12(1):64–79, 2008, doi:10.1109/TEVC.2007.894200 · Das & Suganthan, IEEE TEVC 15(1):4–31, 2011, doi:10.1109/TEVC.2010.2059031 · Das et al., Swarm Evol. Comput. 27:1–30, 2016, doi:10.1016/j.swevo.2016.01.004 · Price, Storn & Lampinen, *Differential Evolution: A Practical Approach to Global Optimization*, Springer 2005.
+
 The code is built to final quality. The POC run doubles as the calibration run. The final run uses the same code with fresh seeds and a frozen generation count.
 
 ## Fixed setup (identical in both arms)
