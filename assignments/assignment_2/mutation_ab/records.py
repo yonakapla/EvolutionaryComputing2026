@@ -22,6 +22,7 @@ GENERATION_FIELDS = (
     "unique",
     "diversity",
     "diff_proposal_rms",
+    "difference_rms",
     "n_difference",
     "n_gaussian",
     "evaluations",
@@ -65,6 +66,7 @@ class RunRecorder:
         self._generations = csv.DictWriter(self._generations_file, fieldnames=GENERATION_FIELDS)
         self._generations.writeheader()
         self._adults: list[np.ndarray] = []
+        self._steps: list[tuple[int, str, np.ndarray]] = []
         self._label = f"[seed {cfg.seed} {arm}]"
         self._total_generations = cfg.generations
         self._started = time.perf_counter()
@@ -90,10 +92,21 @@ class RunRecorder:
     def adults(self, genomes: np.ndarray) -> None:
         self._adults.append(np.array(genomes, dtype=np.float64))
 
+    def step(self, generation: int, kind: str, delta: np.ndarray) -> None:
+        self._steps.append((generation, kind, np.asarray(delta, dtype=np.float32)))
+
     def complete(self, summary: dict) -> None:
         self._close()
         if self._adults:
             np.savez_compressed(self.directory / "adults.npz", adults=np.stack(self._adults))
+        if self._steps:
+            generation, kind, delta = zip(*self._steps, strict=True)
+            np.savez_compressed(
+                self.directory / "steps.npz",
+                generation=np.array(generation),
+                kind=np.array(kind),
+                delta=np.stack(delta),
+            )
         (self.directory / "COMPLETE").write_text(json.dumps(summary))
         self._report("done")
 

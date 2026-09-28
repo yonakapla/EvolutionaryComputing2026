@@ -19,6 +19,7 @@ def _row(generation: int, batch: list[float], best_so_far: float, evaluations: i
         "unique": len(batch),
         "diversity": float("nan"),
         "diff_proposal_rms": float("nan"),
+        "difference_rms": float("nan"),
         "n_difference": 0,
         "n_gaussian": 0,
         "evaluations": evaluations,

@@ -44,3 +44,17 @@ Each (seed, arm) run also prints its best distance every 10 generations and a `d
 ## Layout
 
 Each `results/<name>/seed_<s>/<arm>/` holds `config.json` (configuration, hashes, git commit), `children.jsonl` (every evaluation), `generations.csv`, `adults.npz`, `ariel.db` (EA arms) and `COMPLETE`, or `FAILED.json` if a simulation diverged. Existing directories are never overwritten.
+
+## Step size × step direction (final experiment)
+
+Protocol: `PROTOCOL.md`. Arms: `difference`, `normalised`, `size_matched`, `gaussian` (the 2×2),
+plus references `mixture`, `de_rand_1_bin`, `de_rand_1_bin_matched` and baseline `random`.
+
+```bash
+uv run python -m mutation_ab.run --out mutation_ab/results/final_spider --seeds 1000-1009 \
+  --arms difference,normalised,size_matched,gaussian,mixture,de_rand_1_bin,de_rand_1_bin_matched,random \
+  --body spider_8 --world flat --generations 800 --workers 10
+```
+
+Each EA and DE run also writes `steps.npz` (every 10th generation's steps, for the PCA).
+The original A/B commands above still work unchanged (default arms, body and world).

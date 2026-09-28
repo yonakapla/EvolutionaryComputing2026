@@ -2,22 +2,27 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from mutation_ab.config import RunConfig
+from mutation_ab.config import STEP_DIFFERENCE, STEP_NORMALISED, STEP_SIZE_MATCHED, RunConfig
 from mutation_ab.metrics import rms
 from mutation_ab.streams import Streams
 
 KIND_DIFFERENCE = "difference"
 KIND_GAUSSIAN = "gaussian"
+KIND_NORMALISED = "normalised"
+KIND_SIZE_MATCHED = "size_matched"
+KIND_DE = "de"
+STEP_KINDS = {STEP_DIFFERENCE: KIND_DIFFERENCE, STEP_NORMALISED: KIND_NORMALISED, STEP_SIZE_MATCHED: KIND_SIZE_MATCHED}
 
 
 @dataclass(frozen=True)
 class Proposal:
     child: np.ndarray
     parent: int
-    donors: tuple[int, int]
+    donors: tuple[int, ...]
     kind: str
     proposal_rms: float
     change_rms: float
+    difference_rms: float
 
 
 def tournament(fitness: np.ndarray, size: int, rng: np.random.Generator) -> int:
@@ -37,29 +42,71 @@ def binomial_mask(length: int, rate: float, rng: np.random.Generator) -> np.ndar
     return mask
 
 
+def shaped_step(difference: np.ndarray, noise: np.ndarray, step: str, target_rms: float) -> tuple[np.ndarray, str]:
+    """Turn F(b - c) into the arm's step. A zero difference has no direction to normalise,
+    so the normalised arm falls back to the Gaussian draw (logged as kind "gaussian")."""
+    if step == STEP_DIFFERENCE:
+        return difference, KIND_DIFFERENCE
+    size = rms(difference)
+    if step == STEP_SIZE_MATCHED:
+        return noise / rms(noise) * size, KIND_SIZE_MATCHED
+    if step == STEP_NORMALISED:
+        if size == 0.0:
+            return noise, KIND_GAUSSIAN
+        return difference / size * target_rms, KIND_NORMALISED
+    raise ValueError(f"unknown step {step!r}")
+
+
 def propose_child(
     genomes: np.ndarray,
     fitness: np.ndarray,
     cfg: RunConfig,
     replacement_probability: float,
     streams: Streams,
+    step: str = STEP_DIFFERENCE,
 ) -> Proposal:
     length = genomes.shape[1]
     parent = tournament(fitness, cfg.tournament_size, streams.selection)
     b, c = draw_donors(len(genomes), parent, streams.selection)
-    # Both draws happen in every arm so that A and B consume their streams identically.
+    # Every draw happens in every arm so that all arms consume their streams identically.
     replace = streams.replacement.random() < replacement_probability
     noise = streams.gaussian.normal(0.0, cfg.gaussian_sd, length)
-    delta = noise if replace else cfg.scale_f * (genomes[b] - genomes[c])
+    difference = cfg.scale_f * (genomes[b] - genomes[c])
+    if replace:
+        delta, kind = noise, KIND_GAUSSIAN
+    else:
+        delta, kind = shaped_step(difference, noise, step, cfg.gaussian_sd)
     mask = binomial_mask(length, cfg.crossover_rate, streams.mask)
     child = np.where(mask, genomes[parent] + delta, genomes[parent])
     return Proposal(
         child=child,
         parent=parent,
         donors=(b, c),
-        kind=KIND_GAUSSIAN if replace else KIND_DIFFERENCE,
+        kind=kind,
         proposal_rms=rms(delta),
         change_rms=rms(child - genomes[parent]),
+        difference_rms=rms(difference),
+    )
+
+
+def de_trial(
+    genomes: np.ndarray, target: int, scale_f: float, crossover_rate: float, streams: Streams
+) -> Proposal:
+    """Canonical DE/rand/1/bin trial for `target`: base and donors distinct and != target."""
+    length = genomes.shape[1]
+    candidates = np.delete(np.arange(len(genomes)), target)
+    a, b, c = (int(i) for i in streams.selection.choice(candidates, size=3, replace=False))
+    difference = scale_f * (genomes[b] - genomes[c])
+    mask = binomial_mask(length, crossover_rate, streams.mask)
+    trial = np.where(mask, genomes[a] + difference, genomes[target])
+    return Proposal(
+        child=trial,
+        parent=target,
+        donors=(a, b, c),
+        kind=KIND_DE,
+        proposal_rms=rms(difference),
+        change_rms=rms(trial - genomes[target]),
+        difference_rms=rms(difference),
     )
 
 

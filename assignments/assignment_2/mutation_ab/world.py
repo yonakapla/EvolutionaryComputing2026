@@ -2,8 +2,8 @@ import hashlib
 
 import mujoco as mj
 import numpy as np
-from ariel.body_phenotypes.robogen_lite.prebuilt_robots.john_set import gecko
-from ariel.simulation.environments import OlympicArena
+from ariel.body_phenotypes.robogen_lite.prebuilt_robots import john_set
+from ariel.simulation.environments import OlympicArena, SimpleFlatWorld
 from ariel.utils.noise_gen import PerlinNoise
 
 from mutation_ab.config import RunConfig
@@ -35,11 +35,15 @@ def _sha1(payload: bytes) -> str:
 
 def build_model(cfg: RunConfig) -> tuple[mj.MjModel, dict[str, str]]:
     mj.set_mjcb_control(None)
-    world = SeededOlympicArena(cfg.terrain_seed)
-    world.spawn(gecko().spec, position=list(cfg.spawn), correct_collision_with_floor=True)
+    body = getattr(john_set, cfg.body, None)
+    if body is None:
+        raise ValueError(f"unknown John Set body {cfg.body!r}")
+    world = SeededOlympicArena(cfg.terrain_seed) if cfg.world == "olympic" else SimpleFlatWorld()
+    world.spawn(body().spec, position=list(cfg.spawn), correct_collision_with_floor=True)
     model = world.spec.compile()
+    heightmap = getattr(world, "heightmap", None)
     hashes = {
-        "terrain_sha1": _sha1(world.heightmap.tobytes()),
+        "terrain_sha1": _sha1(heightmap.tobytes()) if heightmap is not None else "flat",
         "model_sha1": _sha1(world.spec.to_xml().encode()),
     }
     return model, hashes

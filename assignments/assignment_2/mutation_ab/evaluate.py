@@ -5,7 +5,7 @@ import numpy as np
 from ariel.utils.runners import simple_runner
 
 from mutation_ab.config import RunConfig
-from mutation_ab.controller import N_INPUTS, act, observe, unpack
+from mutation_ab.controller import act, n_inputs, observe, unpack
 
 UNSTABLE_WARNINGS = (
     mj.mjtWarning.mjWARN_BADQACC,
@@ -29,7 +29,7 @@ class EvalResult:
 
 
 def evaluate(genome: np.ndarray, model: mj.MjModel, cfg: RunConfig) -> EvalResult:
-    layers = unpack(np.asarray(genome, dtype=float), N_INPUTS, cfg.hidden_size, model.nu)
+    layers = unpack(np.asarray(genome, dtype=float), n_inputs(model), cfg.hidden_size, model.nu)
     data = mj.MjData(model)
 
     def control(m: mj.MjModel, d: mj.MjData) -> None:

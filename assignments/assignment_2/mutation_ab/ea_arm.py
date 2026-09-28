@@ -4,10 +4,10 @@ from dataclasses import dataclass
 import numpy as np
 from ariel.ec import EA, EAOperation, Individual, Population
 
-from mutation_ab.config import RunConfig
+from mutation_ab.config import STEP_DIFFERENCE, RunConfig
 from mutation_ab.initial import Evaluator, InitialPopulation, record_founders
 from mutation_ab.metrics import genotype_diversity, unique_genomes
-from mutation_ab.operators import KIND_DIFFERENCE, elite_index, propose_child
+from mutation_ab.operators import KIND_GAUSSIAN, elite_index, propose_child
 from mutation_ab.records import RunRecorder, genome_sha1
 from mutation_ab.streams import Streams
 
@@ -23,6 +23,7 @@ class ArmContext:
     next_uid: int = 0
     evaluations: int = 0
     best_so_far: float = float("inf")
+    step: str = STEP_DIFFERENCE
 
 
 def _by_uid(individuals) -> list[Individual]:
@@ -33,7 +34,10 @@ def _record_generation(ctx: ArmContext, survivors: list[Individual], newborn: li
     genomes = np.array([ind.genotype for ind in survivors], dtype=float)
     fitness = np.array([ind.fitness for ind in survivors])
     ctx.best_so_far = min(ctx.best_so_far, float(fitness.min()))
-    steps = [ind.tags["proposal_rms"] for ind in newborn if ind.tags["kind"] == KIND_DIFFERENCE]
+    bred = [ind for ind in newborn if ind.tags["kind"] != "init"]
+    # Non-Gaussian proposals: population-derived in size (difference, size_matched, de) or fixed (normalised).
+    steps = [ind.tags["proposal_rms"] for ind in bred if ind.tags["kind"] != KIND_GAUSSIAN]
+    spreads = [ind.tags["difference_rms"] for ind in bred]
     ctx.recorder.generation(
         {
             "generation": ctx.generation,
@@ -44,6 +48,7 @@ def _record_generation(ctx: ArmContext, survivors: list[Individual], newborn: li
             "unique": unique_genomes(genomes),
             "diversity": genotype_diversity(genomes),
             "diff_proposal_rms": float(np.mean(steps)) if steps else float("nan"),
+            "difference_rms": float(np.mean(spreads)) if spreads else float("nan"),
             "n_difference": len(steps),
             "n_gaussian": sum(ind.tags["kind"] == "gaussian" for ind in newborn),
             "evaluations": ctx.evaluations,
@@ -52,13 +57,19 @@ def _record_generation(ctx: ArmContext, survivors: list[Individual], newborn: li
     ctx.recorder.adults(genomes)
 
 
+def log_step(ctx: ArmContext, proposal, genomes: np.ndarray) -> None:
+    """Keep every step of every `step_log_every`-th generation for the step-direction PCA."""
+    if ctx.generation % ctx.cfg.step_log_every == 0:
+        ctx.recorder.step(ctx.generation, proposal.kind, proposal.child - genomes[proposal.parent])
+
+
 def reproduce(population: Population, ctx: ArmContext) -> Population:
     ctx.generation += 1
     adults = _by_uid(population)
     genomes = np.array([ind.genotype for ind in adults], dtype=float)
     fitness = np.array([ind.fitness for ind in adults])
     for _ in range(ctx.cfg.children_per_generation):
-        proposal = propose_child(genomes, fitness, ctx.cfg, ctx.replacement_probability, ctx.streams)
+        proposal = propose_child(genomes, fitness, ctx.cfg, ctx.replacement_probability, ctx.streams, ctx.step)
         parent = adults[proposal.parent]
         child = Individual()
         child.genotype = proposal.child.tolist()
@@ -70,11 +81,13 @@ def reproduce(population: Population, ctx: ArmContext) -> Population:
             "donor_uids": [adults[d].tags["uid"] for d in proposal.donors],
             "proposal_rms": proposal.proposal_rms,
             "change_rms": proposal.change_rms,
+            "difference_rms": proposal.difference_rms,
             "parent_distance": parent.fitness,
             "parent_xy": parent.tags["final_xy"],
         }
         ctx.next_uid += 1
         population.append(child)
+        log_step(ctx, proposal, genomes)
     return population
 
 
@@ -112,16 +125,9 @@ def survive(population: Population, ctx: ArmContext) -> Population:
     return population
 
 
-def run_arm(
-    cfg: RunConfig,
-    arm: str,
-    initial: InitialPopulation,
-    evaluator: Evaluator,
-    streams: Streams,
-    recorder: RunRecorder,
-) -> dict:
-    ctx = ArmContext(cfg, cfg.replacement_probability_for(arm), evaluator, streams, recorder)
-    record_founders(initial, recorder)
+def make_founders(ctx: ArmContext, initial: InitialPopulation) -> list[Individual]:
+    """Turn the shared, already evaluated initial population into generation-0 individuals."""
+    record_founders(initial, ctx.recorder)
     founders = []
     for genome, result in zip(initial.genomes, initial.results, strict=True):
         founder = Individual()
@@ -137,6 +143,21 @@ def run_arm(
         ctx.evaluations += 1
         founders.append(founder)
     _record_generation(ctx, founders, founders)
+    return founders
+
+
+def run_arm(
+    cfg: RunConfig,
+    arm: str,
+    initial: InitialPopulation,
+    evaluator: Evaluator,
+    streams: Streams,
+    recorder: RunRecorder,
+) -> dict:
+    ctx = ArmContext(
+        cfg, cfg.replacement_probability_for(arm), evaluator, streams, recorder, step=cfg.step_for(arm)
+    )
+    founders = make_founders(ctx, initial)
 
     ea = EA(
         Population(founders),

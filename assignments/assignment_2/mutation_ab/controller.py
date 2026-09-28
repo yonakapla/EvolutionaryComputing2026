@@ -15,6 +15,11 @@ class Layers:
     b2: np.ndarray
 
 
+def n_inputs(model: mj.MjModel) -> int:
+    """qpos + qvel + target vector (2) + sin/cos clock (2); 29 for the gecko."""
+    return model.nq + model.nv + 4
+
+
 def genome_length(n_inputs: int, hidden: int, n_outputs: int) -> int:
     return n_inputs * hidden + hidden + hidden * n_outputs + n_outputs
 

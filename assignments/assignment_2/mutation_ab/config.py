@@ -8,6 +8,25 @@ ARM_MIXTURE = "mixture"
 ARM_RANDOM = "random"
 ARMS = (ARM_DIFFERENCE, ARM_MIXTURE, ARM_RANDOM)
 
+# Step size x step direction factorial (all inside the same generational EA frame).
+ARM_NORMALISED = "normalised"  # population direction, fixed size
+ARM_SIZE_MATCHED = "size_matched"  # random direction, population (shrinking) size
+ARM_GAUSSIAN = "gaussian"  # random direction, fixed size
+FACTORIAL_ARMS = (ARM_DIFFERENCE, ARM_NORMALISED, ARM_SIZE_MATCHED, ARM_GAUSSIAN)
+
+# Reference: canonical DE/rand/1/bin with one-to-one survivor selection.
+ARM_DE = "de_rand_1_bin"  # textbook F and Cr
+ARM_DE_MATCHED = "de_rand_1_bin_matched"  # the EA arms' F and Cr
+DE_ARMS = (ARM_DE, ARM_DE_MATCHED)
+
+ALL_ARMS = (*FACTORIAL_ARMS, ARM_MIXTURE, *DE_ARMS, ARM_RANDOM)
+
+STEP_DIFFERENCE = "difference"
+STEP_NORMALISED = "normalised"
+STEP_SIZE_MATCHED = "size_matched"
+
+WORLDS = ("olympic", "flat")
+
 
 @dataclass(frozen=True)
 class RunConfig:
@@ -26,6 +45,11 @@ class RunConfig:
     crossover_rate: float = 0.2
     replacement_probability: float = 0.10
     terrain_seed: int = 42
+    body: str = "gecko"
+    world: str = "olympic"
+    de_scale_f: float = 0.5
+    de_crossover_rate: float = 0.9
+    step_log_every: int = 10
 
     def __post_init__(self) -> None:
         if self.population_size < max(3, self.tournament_size):
@@ -39,6 +63,12 @@ class RunConfig:
             raise ValueError("replacement_probability must be in [0, 1]")
         if not 0.0 < self.crossover_rate <= 1.0:
             raise ValueError("crossover_rate must be in (0, 1]")
+        if not 0.0 < self.de_crossover_rate <= 1.0:
+            raise ValueError("de_crossover_rate must be in (0, 1]")
+        if self.world not in WORLDS:
+            raise ValueError(f"world must be one of {WORLDS}")
+        if self.step_log_every < 1:
+            raise ValueError("step_log_every must be >= 1")
 
     @property
     def children_per_generation(self) -> int:
@@ -48,12 +78,30 @@ class RunConfig:
     def budget(self) -> int:
         return self.population_size + self.children_per_generation * self.generations
 
+    @property
+    def de_generations(self) -> int:
+        """Generations of canonical DE (population_size trials each) within the EA arms' budget."""
+        return (self.budget - self.population_size) // self.population_size
+
     def replacement_probability_for(self, arm: str) -> float:
-        if arm == ARM_DIFFERENCE:
+        if arm in (ARM_DIFFERENCE, ARM_NORMALISED, ARM_SIZE_MATCHED):
             return 0.0
         if arm == ARM_MIXTURE:
             return self.replacement_probability
+        if arm == ARM_GAUSSIAN:
+            return 1.0
         raise ValueError(f"arm {arm!r} has no mutation operator")
+
+    def step_for(self, arm: str) -> str:
+        """How a non-Gaussian step is built: F(b - c) as is, rescaled, or its size on a random direction."""
+        return {ARM_NORMALISED: STEP_NORMALISED, ARM_SIZE_MATCHED: STEP_SIZE_MATCHED}.get(arm, STEP_DIFFERENCE)
+
+    def de_parameters_for(self, arm: str) -> tuple[float, float]:
+        if arm == ARM_DE:
+            return self.de_scale_f, self.de_crossover_rate
+        if arm == ARM_DE_MATCHED:
+            return self.scale_f, self.crossover_rate
+        raise ValueError(f"arm {arm!r} is not a DE arm")
 
     def to_dict(self) -> dict:
         return asdict(self)
