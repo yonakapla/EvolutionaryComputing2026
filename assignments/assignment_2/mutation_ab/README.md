@@ -31,6 +31,16 @@ uv run python -m mutation_ab.run --out mutation_ab/results/final --seeds 800-809
 uv run python -m mutation_ab.analysis mutation_ab/results/final
 ```
 
+## Progress output
+
+While running, the main process prints an overall line every 60 s (change with `--heartbeat SECONDS`, `0` turns it off), for example:
+
+```
+15:05:55  overall 64% (63,910/99,360 evals) · 230 s/10k evals · runs done 10/30 · ETA 15:21
+```
+
+Each (seed, arm) run also prints its best distance every 10 generations and a `done` or `FAILED` line.
+
 ## Layout
 
 Each `results/<name>/seed_<s>/<arm>/` holds `config.json` (configuration, hashes, git commit), `children.jsonl` (every evaluation), `generations.csv`, `adults.npz`, `ariel.db` (EA arms) and `COMPLETE`, or `FAILED.json` if a simulation diverged. Existing directories are never overwritten.

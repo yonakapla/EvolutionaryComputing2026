@@ -15,6 +15,7 @@ from mutation_ab.controller import N_INPUTS, genome_length
 from mutation_ab.ea_arm import run_arm
 from mutation_ab.evaluate import UnstableSimulation, evaluate
 from mutation_ab.initial import make_initial
+from mutation_ab.progress import Heartbeat
 from mutation_ab.random_search import run_random
 from mutation_ab.records import RunRecorder
 from mutation_ab.streams import make_streams
@@ -81,6 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--population", type=int, default=12)
     parser.add_argument("--duration", type=float, default=15.0)
     parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument("--heartbeat", type=float, default=60.0, help="seconds between overall progress lines; 0 disables")
     args = parser.parse_args(argv)
 
     try:
@@ -100,16 +102,18 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"Running seeds {seeds[0]}..{seeds[-1]} ({len(seeds)} seeds) x arms {', '.join(ARMS)}; "
         f"{args.generations} generations, {budget} evaluations per arm, {args.workers} worker(s); "
-        f"output in {args.out}. Progress is printed every 10 generations per seed and arm.",
+        f"output in {args.out}. Overall progress every {args.heartbeat:g}s; "
+        f"per-run progress every 10 generations.",
         flush=True,
     )
 
-    if args.workers == 1:
-        results = [run_seed(seed, args.out, overrides) for seed in seeds]
-    else:
-        context = multiprocessing.get_context("spawn")
-        with ProcessPoolExecutor(max_workers=args.workers, mp_context=context) as pool:
-            results = list(pool.map(run_seed, seeds, repeat(args.out), repeat(overrides)))
+    with Heartbeat(args.out, seeds, ARMS, budget, args.heartbeat):
+        if args.workers == 1:
+            results = [run_seed(seed, args.out, overrides) for seed in seeds]
+        else:
+            context = multiprocessing.get_context("spawn")
+            with ProcessPoolExecutor(max_workers=args.workers, mp_context=context) as pool:
+                results = list(pool.map(run_seed, seeds, repeat(args.out), repeat(overrides)))
 
     print(json.dumps(results, indent=2))
     complete = all(state == "complete" for r in results for state in r["status"].values())
