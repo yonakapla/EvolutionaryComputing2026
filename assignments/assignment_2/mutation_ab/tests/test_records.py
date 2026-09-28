@@ -13,6 +13,24 @@ def row(generation):
     return {field: 0 for field in GENERATION_FIELDS} | {"generation": generation}
 
 
+def test_reports_progress_every_ten_generations_and_on_finish(tmp_path, capsys):
+    recorder = RunRecorder(tmp_path / "run", RunConfig(seed=7, generations=20), "mixture", HASHES)
+    for generation in range(21):
+        recorder.generation(row(generation) | {"best_so_far": 1.5, "evaluations": 12 + 11 * generation})
+    recorder.complete({"evaluations": 232})
+    lines = capsys.readouterr().out.splitlines()
+    generations = [line.split(" gen ")[1].split()[0] for line in lines if " gen " in line]
+    assert generations == ["0/20", "10/20", "20/20"]
+    assert all(line.startswith("[seed 7 mixture]") for line in lines)
+    assert "done" in lines[-1]
+
+
+def test_reports_failure(tmp_path, capsys):
+    recorder = RunRecorder(tmp_path / "run", RunConfig(seed=7), "difference", HASHES)
+    recorder.fail(RuntimeError("boom"))
+    assert "FAILED" in capsys.readouterr().out
+
+
 def test_refuses_existing_directory(tmp_path):
     target = tmp_path / "run"
     target.mkdir()

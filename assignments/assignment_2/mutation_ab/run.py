@@ -48,6 +48,7 @@ def run_seed(seed: int, out_root: Path, overrides: dict) -> dict:
     length = genome_length(N_INPUTS, cfg.hidden_size, model.nu)
     seed_dir = out_root / f"seed_{seed}"
     status: dict[str, str] = {}
+    print(f"[seed {seed}] started: evaluating the shared initial population", flush=True)
     try:
         initial = make_initial(cfg, make_streams(seed), evaluator, length)
     except UnstableSimulation as error:
@@ -94,8 +95,14 @@ def main(argv: list[str] | None = None) -> int:
         "population_size": args.population,
         "duration": args.duration,
     }
-    RunConfig(seed=0, **overrides)
+    budget = RunConfig(seed=0, **overrides).budget
     args.out.mkdir(parents=True, exist_ok=True)
+    print(
+        f"Running seeds {seeds[0]}..{seeds[-1]} ({len(seeds)} seeds) x arms {', '.join(ARMS)}; "
+        f"{args.generations} generations, {budget} evaluations per arm, {args.workers} worker(s); "
+        f"output in {args.out}. Progress is printed every 10 generations per seed and arm.",
+        flush=True,
+    )
 
     if args.workers == 1:
         results = [run_seed(seed, args.out, overrides) for seed in seeds]
