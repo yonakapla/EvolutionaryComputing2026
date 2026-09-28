@@ -64,7 +64,7 @@ def test_paired_handles_zero_differences():
 
 def test_plateau_generation():
     flat_after_50 = np.concatenate([np.linspace(3.0, 1.0, 51), np.full(30, 1.0)])
-    assert analysis.plateau_generation([flat_after_50, flat_after_50]) == 60
+    assert analysis.plateau_generation([flat_after_50, flat_after_50]) == 70
     still_falling = np.linspace(3.0, 1.0, 81)
     assert analysis.plateau_generation([flat_after_50, still_falling]) is None
 

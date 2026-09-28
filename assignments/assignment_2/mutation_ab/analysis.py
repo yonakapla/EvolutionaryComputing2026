@@ -144,11 +144,7 @@ def plateau_generation(
 ) -> int | None:
     last = min(len(curve) for curve in curves) - 1
     for generation in range(start, last + 1, every):
-        # `window` only gates when enough history exists; the gain check itself looks back
-        # one checkpoint (`every`), since that is the freshest slope available at each step.
-        if generation - window < 0:
-            continue
-        if all(curve[generation - every] - curve[generation] < gain for curve in curves):
+        if all(curve[generation - window] - curve[generation] < gain for curve in curves):
             return generation
     return None
 
