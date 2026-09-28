@@ -66,3 +66,16 @@ def test_src_ariel_is_untouched():
         check=True,
     )
     assert status.stdout == ""
+
+    merge_base = subprocess.run(
+        ["git", "merge-base", "HEAD", "main"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    subprocess.run(
+        ["git", "diff", "--quiet", merge_base, "--", "src/ariel"],
+        cwd=REPO_ROOT,
+        check=True,
+    )
