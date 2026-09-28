@@ -121,10 +121,33 @@ def test_figures_succeed_and_stay_readable_when_a_step_collapses_to_zero(tmp_pat
     assert (out / "fig2.png").exists()
 
     fig, (left, _right) = plt.subplots(1, 2)
-    twin = left.twinx()
-    gen1_medians = [analysis._step_panel(left, twin, runs, arm) for arm in (ARM_DIFFERENCE, ARM_MIXTURE)]
+    gen1_medians = [analysis._step_panel(left, runs, arm) for arm in (ARM_DIFFERENCE, ARM_MIXTURE)]
     plt.close(fig)
     assert analysis._step_panel_ylim_bottom(gen1_medians) > 1e-6
+
+
+def test_collapse_generations_mark_first_zero_step_per_seed(tmp_path):
+    root = make_fake_root(tmp_path, [1, 2], **SMALL)
+    _force_step_collapse(root, [1, 2])
+    runs = analysis.load_runs(root)
+    assert analysis._collapse_generations(runs, ARM_DIFFERENCE) == [1, 1]
+    assert analysis._collapse_generations(runs, ARM_MIXTURE) == []
+
+
+def test_paired_seed_rows_line_up_arms_per_seed(root):
+    rows = analysis.paired_seed_rows(analysis.load_runs(root))
+    assert [row["seed"] for row in rows] == [1, 2, 3]
+    for row in rows:
+        assert set(row) == {
+            "seed",
+            "best_difference",
+            "best_mixture",
+            "best_random",
+            "improve_a",
+            "improve_b_difference",
+            "improve_b_gaussian",
+        }
+        assert row["best_mixture"] > 0
 
 
 def test_go_no_go_reports_every_criterion(root):
@@ -163,7 +186,7 @@ def test_go_no_go_speed_uses_seed_batches_not_raw_evaluation_count(root):
 def test_main_writes_outputs(root):
     assert analysis.main([str(root), "--poc"]) == 0
     out = root / "analysis"
-    for name in ("analysis.json", "seed_metrics.csv", "h4.csv", "h4_summary.csv", "fig1.pdf", "fig1.png", "fig2.pdf", "fig2.png"):
+    for name in ("analysis.json", "seed_metrics.csv", "h4.csv", "h4_summary.csv", "fig1.pdf", "fig1.png", "fig2.pdf", "fig2.png", "fig3.pdf", "fig3.png"):
         assert (out / name).exists()
     report = json.loads((out / "analysis.json").read_text())
     assert "tests" in report

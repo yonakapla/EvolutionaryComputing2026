@@ -233,7 +233,9 @@ def go_no_go(runs, *, final_seeds: int, workers: int, deadline: date, now: datet
     return {"criteria": criteria, "g_final": g_final, "plateau_found": plateau is not None}
 
 
-def _band(ax, runs, arm: str, key: str, normalise: bool = False, log: bool = False) -> None:
+def _band(
+    ax, runs, arm: str, key: str, normalise: bool = False, log: bool = False, bounds: tuple[float, float] | None = None
+) -> None:
     curves = np.array([runs[s][arm].generations[key] for s in sorted(runs)])
     if normalise:
         curves = curves / curves[:, :1]
@@ -246,13 +248,16 @@ def _band(ax, runs, arm: str, key: str, normalise: bool = False, log: bool = Fal
         sd = np.nanstd(curves, axis=0, ddof=1) if len(curves) > 1 else np.zeros_like(mean)
     x = runs[sorted(runs)[0]][arm].generations["generation"]
     lower = np.clip(mean - sd, 1e-12, None) if log else mean - sd
+    upper = mean + sd
+    if bounds is not None:
+        lower, upper = np.clip(lower, *bounds), np.clip(upper, *bounds)
     ax.plot(x, mean, color=COLORS[arm], label=LABELS[arm])
-    ax.fill_between(x, lower, mean + sd, color=COLORS[arm], alpha=0.2, linewidth=0)
+    ax.fill_between(x, lower, upper, color=COLORS[arm], alpha=0.2, linewidth=0)
     if log:
         ax.set_yscale("log")
 
 
-def _step_panel(ax, twin, runs, arm: str) -> float:
+def _step_panel(ax, runs, arm: str) -> float:
     seeds = sorted(runs)
     curves = np.array([runs[s][arm].generations["diff_proposal_rms"] for s in seeds])
     x = runs[seeds[0]][arm].generations["generation"]
@@ -264,9 +269,36 @@ def _step_panel(ax, twin, runs, arm: str) -> float:
         q3 = np.nanpercentile(positive, 75, axis=0)
     ax.plot(x, median, color=COLORS[arm], label=LABELS[arm])
     ax.fill_between(x, q1, q3, color=COLORS[arm], alpha=0.2, linewidth=0)
-    collapsed_fraction = np.mean(curves == 0, axis=0)
-    twin.plot(x, collapsed_fraction, color=COLORS[arm], linestyle=":", linewidth=1, alpha=0.6)
     return float(median[1]) if median.size > 1 else float("nan")
+
+
+def _collapse_generations(runs, arm: str) -> list[int]:
+    collapses = []
+    for seed in sorted(runs):
+        generations = runs[seed][arm].generations
+        zero = np.flatnonzero(generations["diff_proposal_rms"] == 0)
+        if zero.size:
+            collapses.append(int(generations["generation"][zero[0]]))
+    return collapses
+
+
+def paired_seed_rows(runs) -> list[dict]:
+    rows = []
+    for seed in sorted(runs):
+        a = seed_metrics(runs[seed][ARM_DIFFERENCE])
+        b = seed_metrics(runs[seed][ARM_MIXTURE])
+        rows.append(
+            {
+                "seed": seed,
+                "best_difference": a["best_final"],
+                "best_mixture": b["best_final"],
+                "best_random": seed_metrics(runs[seed][ARM_RANDOM])["best_final"],
+                "improve_a": a["improve_rate"],
+                "improve_b_difference": b["improve_rate_difference"],
+                "improve_b_gaussian": b["improve_rate_gaussian"],
+            }
+        )
+    return rows
 
 
 def _step_panel_ylim_bottom(gen1_medians: list[float]) -> float:
@@ -291,23 +323,59 @@ def figures(runs, out: Path) -> None:
         fig.savefig(out / f"fig1.{suffix}", dpi=200)
     plt.close(fig)
 
+    population = runs[sorted(runs)[0]][ARM_DIFFERENCE].config["population_size"]
     fig, (left, right) = plt.subplots(1, 2, figsize=(7.0, 2.6))
-    twin = left.twinx()
     gen1_medians = []
     for arm in ea_arms:
-        gen1_medians.append(_step_panel(left, twin, runs, arm))
-        _band(right, runs, arm, "unique")
+        gen1_medians.append(_step_panel(left, runs, arm))
+        _band(right, runs, arm, "unique", bounds=(1, population))
+    bottom = _step_panel_ylim_bottom(gen1_medians)
     left.set_yscale("log")
-    left.set_ylim(bottom=_step_panel_ylim_bottom(gen1_medians))
-    left.set(xlabel="generation", ylabel="differential step RMS (median, IQR)")
-    twin.set_ylabel("fraction of seeds collapsed to 0", fontsize=7)
-    twin.set_ylim(0, 1)
-    left.legend(frameon=False, fontsize=7)
-    right.set(xlabel="generation", ylabel="unique genomes")
-    right.legend(frameon=False, fontsize=7)
+    left.set_ylim(bottom=bottom)
+    collapses = _collapse_generations(runs, ARM_DIFFERENCE)
+    if collapses:
+        left.plot(collapses, [bottom * 1.6] * len(collapses), linestyle="none", marker="|", markersize=9,
+                  color=COLORS[ARM_DIFFERENCE], label="A: seed collapsed (step = 0)")
+    left.set(xlabel="generation", ylabel="differential step RMS")
+    left.legend(frameon=False, fontsize=7, loc="upper right")
+    right.set(xlabel="generation", ylabel="unique genomes", ylim=(0, population + 0.5))
+    right.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
+    right.legend(frameon=False, fontsize=7, loc="center right")
     fig.tight_layout()
     for suffix in ("pdf", "png"):
         fig.savefig(out / f"fig2.{suffix}", dpi=200)
+    plt.close(fig)
+
+    rows = paired_seed_rows(runs)
+    fig, (left, right) = plt.subplots(1, 2, figsize=(7.0, 2.6))
+    positions = {ARM_DIFFERENCE: 0, ARM_MIXTURE: 1, ARM_RANDOM: 2}
+    for row in rows:
+        values = [row[f"best_{arm}"] for arm in ARMS]
+        left.plot(list(positions.values()), values, color="#bbbbbb", linewidth=0.8, zorder=1)
+    for arm, position in positions.items():
+        values = [row[f"best_{arm}"] for row in rows]
+        left.scatter([position] * len(values), values, color=COLORS[arm], s=14, zorder=2)
+        left.hlines(np.mean(values), position - 0.25, position + 0.25, color=COLORS[arm], linewidth=2, zorder=3)
+    left.set_xticks(list(positions.values()), ["A", "B", "Random"])
+    left.set(ylabel="final best distance (m)", xlim=(-0.5, 2.5))
+
+    groups = [
+        ("A\nchildren", "improve_a", ARM_DIFFERENCE),
+        ("B difference\nchildren", "improve_b_difference", ARM_MIXTURE),
+        ("B Gaussian\nchildren", "improve_b_gaussian", ARM_MIXTURE),
+    ]
+    jitter = np.linspace(-0.12, 0.12, len(rows)) if len(rows) > 1 else np.zeros(1)
+    for position, (_, key, arm) in enumerate(groups):
+        values = np.array([row[key] for row in rows if row[key] is not None], dtype=float)
+        if values.size:
+            right.scatter(position + jitter[: values.size], values, color=COLORS[arm], s=14, zorder=2)
+            right.hlines(values.mean(), position - 0.25, position + 0.25, color=COLORS[arm], linewidth=2, zorder=3)
+    right.set_xticks(range(len(groups)), [label for label, _, _ in groups])
+    right.set(ylabel="children beating their parent", xlim=(-0.5, len(groups) - 0.5))
+    right.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
+    fig.tight_layout()
+    for suffix in ("pdf", "png"):
+        fig.savefig(out / f"fig3.{suffix}", dpi=200)
     plt.close(fig)
 
 
