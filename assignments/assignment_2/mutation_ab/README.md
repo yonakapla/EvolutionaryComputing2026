@@ -38,6 +38,18 @@ The analysis writes `analysis/` inside the results folder: `report.txt`, the tab
 `per_seed.csv`, `stats.csv`, `plateau.csv`, `step_shape.csv`, `step_span.csv`, and the figures
 `fig_fitness`, `fig_mechanism`, `fig_seeds` (PNG and PDF).
 
+## Analysis results in git
+
+Raw runs stay out of git (`results/` is ignored); the analysis of each experiment is tracked in
+`analysis_results/<experiment>/`. After changing the code, rerun the experiment and refresh its analysis:
+
+```bash
+uv run python -m mutation_ab.analysis mutation_ab/results/final_spider --out mutation_ab/analysis_results/final_spider
+uv run python -m mutation_ab.analysis mutation_ab/results/supp_pop48 --out mutation_ab/analysis_results/supp_pop48
+```
+
+The outputs have no timestamps, so git shows a change only when a result changes.
+
 ## Progress output
 
 While running, the main process prints an overall line every 60 s (change with `--heartbeat SECONDS`,

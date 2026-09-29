@@ -2,7 +2,7 @@
 
     uv run python -m mutation_ab.analysis mutation_ab/results/final_spider
 
-Writes the tables, figures and report.txt to <root>/analysis/.
+Writes the tables, figures and report.txt to <root>/analysis/, or to --out.
 """
 
 import argparse
@@ -302,8 +302,9 @@ def _shared_legend(fig, axes, ncol: int) -> None:
 
 
 def _save(fig, out: Path, name: str) -> None:
-    fig.savefig(out / f"{name}.png", dpi=200, bbox_inches="tight")
-    fig.savefig(out / f"{name}.pdf", bbox_inches="tight")
+    # No timestamps, so unchanged results give byte-identical files in git.
+    fig.savefig(out / f"{name}.png", dpi=200, bbox_inches="tight", metadata={"Software": None})
+    fig.savefig(out / f"{name}.pdf", bbox_inches="tight", metadata={"CreationDate": None})
     plt.close(fig)
 
 
@@ -392,7 +393,7 @@ def fig_seeds(runs, out: Path) -> None:
 def write_csv(path: Path, rows: list[dict]) -> None:
     fields = sorted({key for row in rows for key in row})
     with path.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -457,10 +458,11 @@ def report(summary: list[dict], stats: list[dict], plateau: list[dict], span: li
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Step size x step direction analysis")
     parser.add_argument("root", type=Path)
+    parser.add_argument("--out", type=Path, help="output folder (default: <root>/analysis)")
     args = parser.parse_args(argv)
     runs = load(args.root)
-    out = args.root / "analysis"
-    out.mkdir(exist_ok=True)
+    out = args.out or args.root / "analysis"
+    out.mkdir(parents=True, exist_ok=True)
 
     per_seed = [seed_metrics(run) for arm in runs for run in runs[arm].values()]
     summary = summary_rows(per_seed)
