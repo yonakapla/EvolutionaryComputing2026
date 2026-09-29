@@ -164,3 +164,27 @@ def test_every_arm_runs_on_spider_in_flat_world(tmp_path):
         assert (tmp_path / "seed_905" / arm / "COMPLETE").exists()
     config = json.loads((tmp_path / "seed_905" / ARM_GAUSSIAN / "config.json").read_text())
     assert (config["config"]["body"], config["config"]["world"]) == ("spider_8", "flat")
+
+
+@pytest.mark.parametrize("body", ["np", "does_not_exist"])
+def test_unknown_body_is_rejected(body):
+    from mutation_ab.world import build_model
+
+    with pytest.raises(ValueError, match="unknown John Set body"):
+        build_model(RunConfig(seed=1, body=body))
+
+
+def test_de_budget_and_generations_per_arm():
+    cfg = RunConfig(seed=1, generations=80)
+    assert cfg.budget_for(ARM_GAUSSIAN) == cfg.budget
+    assert cfg.budget_for(ARM_DE) == 12 * (1 + cfg.de_generations) == 888
+    assert cfg.generations_for(ARM_DE) == cfg.de_generations
+    assert cfg.generations_for(ARM_GAUSSIAN) == 80
+
+
+def test_heartbeat_total_uses_each_arms_budget(tmp_path, capsys):
+    from mutation_ab.progress import Heartbeat
+
+    with Heartbeat(tmp_path, [1, 2], (ARM_GAUSSIAN, ARM_DE), {ARM_GAUSSIAN: 892, ARM_DE: 888}, interval_s=3600):
+        pass
+    assert "(0/3,560 evals)" in capsys.readouterr().out

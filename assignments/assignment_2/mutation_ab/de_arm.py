@@ -10,7 +10,7 @@ import numpy as np
 from ariel.ec import EA, EAOperation, Individual, Population
 
 from mutation_ab.config import RunConfig
-from mutation_ab.ea_arm import ArmContext, _by_uid, _record_generation, evaluate_children, log_step, make_founders
+from mutation_ab.ea_arm import ArmContext, by_uid, evaluate_children, log_step, make_founders, record_generation
 from mutation_ab.initial import Evaluator, InitialPopulation
 from mutation_ab.operators import de_trial
 from mutation_ab.records import RunRecorder
@@ -19,7 +19,7 @@ from mutation_ab.streams import Streams
 
 def make_trials(population: Population, ctx: ArmContext, scale_f: float, crossover_rate: float) -> Population:
     ctx.generation += 1
-    targets = _by_uid(population)
+    targets = by_uid(population)
     genomes = np.array([ind.genotype for ind in targets], dtype=float)
     for index, target in enumerate(targets):
         proposal = de_trial(genomes, index, scale_f, crossover_rate, ctx.streams)
@@ -44,7 +44,7 @@ def make_trials(population: Population, ctx: ArmContext, scale_f: float, crossov
 
 
 def select_one_to_one(population: Population, ctx: ArmContext) -> Population:
-    members = _by_uid(population)
+    members = by_uid(population)
     adults = {ind.tags["uid"]: ind for ind in members if ind.tags["generation"] < ctx.generation}
     trials = [ind for ind in members if ind.tags["generation"] == ctx.generation]
     for trial in trials:
@@ -54,7 +54,7 @@ def select_one_to_one(population: Population, ctx: ArmContext) -> Population:
         else:
             trial.alive = False
     survivors = [ind for ind in members if ind.alive]
-    _record_generation(ctx, survivors, trials)
+    record_generation(ctx, survivors, trials)
     return population
 
 
@@ -69,7 +69,8 @@ def run_de(
     if cfg.population_size < 4:
         raise ValueError("DE/rand/1 needs a target plus three distinct other members")
     scale_f, crossover_rate = cfg.de_parameters_for(arm)
-    ctx = ArmContext(cfg, 0.0, evaluator, streams, recorder)
+    # DE never replaces a step with Gaussian noise; the EA arms' step setting is unused here.
+    ctx = ArmContext(cfg, replacement_probability=0.0, evaluator=evaluator, streams=streams, recorder=recorder)
     founders = make_founders(ctx, initial)
     ea = EA(
         Population(founders),

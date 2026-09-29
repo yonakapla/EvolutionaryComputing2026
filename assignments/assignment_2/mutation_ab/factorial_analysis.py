@@ -3,12 +3,15 @@
     uv run python -m mutation_ab.factorial_analysis mutation_ab/results/final_spider
 
 Writes <root>/analysis/: summary.csv (per arm), per_seed.csv, stats.csv, plateau.csv,
-step_span.csv, report.txt and the figures fig_fitness, fig_mechanism and fig_seeds
-(.png and .pdf). Every number in the figures is also in a CSV.
+step_span.csv, step_shape.csv, report.txt and the figures fig_fitness, fig_mechanism and
+fig_seeds (.png and .pdf). Every number in the figures is also in a CSV.
+
+Fitness is compared at equal evaluations. Per-generation quantities (collapse, step span,
+plateau) use each arm's own generations: a canonical DE generation costs population_size
+evaluations, an EA generation population_size - 1.
 """
 
 import argparse
-import csv
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,7 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import wilcoxon
 
-from mutation_ab.analysis import holm, plateau_generation
+from mutation_ab.analysis import holm, plateau_generation, write_csv
 from mutation_ab.config import (
     ARM_DE,
     ARM_DE_MATCHED,
@@ -30,31 +33,31 @@ from mutation_ab.config import (
     ARM_NORMALISED,
     ARM_RANDOM,
     ARM_SIZE_MATCHED,
+    FACTORIAL_ARMS,
 )
+from mutation_ab.records import read_generations
 
-ARM_ORDER = (
-    ARM_DIFFERENCE, ARM_SIZE_MATCHED, ARM_NORMALISED, ARM_GAUSSIAN,
-    ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED, ARM_RANDOM,
-)
-FACTORIAL = (ARM_DIFFERENCE, ARM_NORMALISED, ARM_SIZE_MATCHED, ARM_GAUSSIAN)
+FACTORIAL = FACTORIAL_ARMS
 REFERENCES = (ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED)
+# Reading order in tables and figures: the shrinking-size cells, the fixed-size cells, references, baseline.
+ARM_ORDER = (ARM_DIFFERENCE, ARM_SIZE_MATCHED, ARM_NORMALISED, ARM_GAUSSIAN, *REFERENCES, ARM_RANDOM)
 LABELS = {
     ARM_DIFFERENCE: "A: difference (population dir., shrinking size)",
     ARM_NORMALISED: "B: normalised difference (population dir., fixed size)",
     ARM_SIZE_MATCHED: "C: size-matched (random dir., shrinking size)",
     ARM_GAUSSIAN: "D: Gaussian (random dir., fixed size)",
     ARM_MIXTURE: "Mixture (10% Gaussian)",
-    ARM_DE: "Canonical DE (F 0.5, Cr 0.9)",
-    ARM_DE_MATCHED: "Canonical DE (F 0.21, Cr 0.2)",
+    ARM_DE: "Canonical DE (textbook F and Cr)",
+    ARM_DE_MATCHED: "Canonical DE (the EA arms' F and Cr)",
     ARM_RANDOM: "Random search",
 }
 SHORT = {
     ARM_DIFFERENCE: "A: difference", ARM_NORMALISED: "B: normalised", ARM_SIZE_MATCHED: "C: size-matched",
     ARM_GAUSSIAN: "D: Gaussian", ARM_MIXTURE: "Mixture", ARM_DE: "DE (textbook)",
-    ARM_DE_MATCHED: "DE (matched F, Cr)", ARM_RANDOM: "Random search",
+    ARM_DE_MATCHED: "DE (EA's F, Cr)", ARM_RANDOM: "Random search",
 }
-# Validated categorical palette (dataviz reference instance, fixed slot order); random search is the
-# neutral baseline. Line style is the secondary encoding: dashed = shrinking size, solid = fixed size.
+# One colour per arm in every figure, from a colour-blind-checked palette; random search is neutral grey.
+# Line style repeats the design for greyscale print: dashed = shrinking size, solid = fixed size.
 COLORS = {
     ARM_DIFFERENCE: "#2a78d6", ARM_SIZE_MATCHED: "#eb6834", ARM_NORMALISED: "#1baf7a", ARM_GAUSSIAN: "#eda100",
     ARM_MIXTURE: "#e87ba4", ARM_DE: "#008300", ARM_DE_MATCHED: "#4a3aa7", ARM_RANDOM: "#52514e",
@@ -74,26 +77,33 @@ class Run:
     directory: Path
     generations: dict[str, np.ndarray]
     children: list[dict]
-
-
-def _read_generations(path: Path) -> dict[str, np.ndarray]:
-    with path.open() as handle:
-        rows = list(csv.DictReader(handle))
-    return {key: np.array([float(row[key]) for row in rows]) for key in rows[0]}
+    config: dict
 
 
 def load(root: Path) -> dict[str, dict[int, Run]]:
-    """arm -> seed -> Run, for every run with a COMPLETE marker. All arms must share one seed set."""
+    """arm -> seed -> Run, for every run with a COMPLETE marker.
+
+    Refuses to pool runs that differ in anything but the seed (body, world, budget, parameters,
+    terrain or model), and arms that cover different seeds.
+    """
     runs: dict[str, dict[int, Run]] = {}
+    setups: dict[str, list[str]] = {}
     for seed_dir in sorted(Path(root).glob("seed_*"), key=lambda p: int(p.name.split("_")[1])):
         seed = int(seed_dir.name.split("_")[1])
         for arm_dir in sorted(seed_dir.iterdir()):
             if not (arm_dir / "COMPLETE").exists():
                 continue
+            meta = json.loads((arm_dir / "config.json").read_text())
+            setup = json.dumps({"config": {k: v for k, v in meta["config"].items() if k != "seed"},
+                                "hashes": meta["hashes"]}, sort_keys=True)
+            setups.setdefault(setup, []).append(str(arm_dir))
             children = [json.loads(line) for line in (arm_dir / "children.jsonl").read_text().splitlines()]
             runs.setdefault(arm_dir.name, {})[seed] = Run(
-                seed, arm_dir.name, arm_dir, _read_generations(arm_dir / "generations.csv"), children
+                seed, arm_dir.name, arm_dir, read_generations(arm_dir / "generations.csv"), children, meta["config"]
             )
+    if len(setups) > 1:
+        examples = [dirs[0] for dirs in setups.values()]
+        raise ValueError(f"runs under {root} use {len(setups)} different setups, e.g. {examples}")
     seed_sets = {arm: tuple(sorted(by_seed)) for arm, by_seed in runs.items()}
     if len(set(seed_sets.values())) != 1:
         raise ValueError(f"arms cover different seeds: {seed_sets}")
@@ -235,6 +245,35 @@ def step_span(runs) -> list[dict]:
     return rows
 
 
+def step_shape(runs) -> list[dict]:
+    """What the logged steps actually change: share of zero steps (clones), how many weights a
+    non-zero step changes, its overall RMS and the RMS over the weights it changes.
+
+    This separates the normalised arm from the Gaussian one beyond direction: both have the same
+    RMS before the mask, but population differences are sparse, so normalised steps change few
+    weights by a lot."""
+    rows = []
+    for arm in runs:
+        deltas = [np.load(run.directory / "steps.npz")["delta"].astype(float)
+                  for run in runs[arm].values() if (run.directory / "steps.npz").exists()]
+        if not deltas:
+            continue
+        steps = np.concatenate(deltas)
+        changed = steps != 0
+        counts = changed.sum(axis=1)
+        moving = counts > 0
+        per_changed = np.sqrt((steps[moving] ** 2).sum(axis=1) / counts[moving])
+        rows.append({
+            "arm": arm,
+            "steps": len(steps),
+            "zero_step_share": float(np.mean(~moving)),
+            "weights_changed_median": float(np.median(counts[moving])) if moving.any() else 0.0,
+            "step_rms_median": float(np.median(np.sqrt(np.mean(steps[moving] ** 2, axis=1)))) if moving.any() else 0.0,
+            "change_per_changed_weight_median": float(np.median(per_changed)) if moving.any() else 0.0,
+        })
+    return rows
+
+
 # --- Figures ---------------------------------------------------------------- #
 def _style(ax, xlabel: str, ylabel: str) -> None:
     ax.grid(True, color=GRID, linewidth=0.6)
@@ -302,7 +341,8 @@ def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
     axes[0].set_yscale("log")
     _style(axes[0], "generation", f"RMS of F(b − c), median (floor {floor:g})")
     axes[0].set_title("(a) Population difference size", loc="left", fontsize=10, color=INK)
-    _style(axes[1], "generation", "distinct genomes (of 12), mean")
+    population = next(iter(runs[ea_arms[0]].values())).config["population_size"]
+    _style(axes[1], "generation", f"distinct genomes (of {population}), mean")
     axes[1].set_title("(b) Collapse", loc="left", fontsize=10, color=INK)
 
     for arm in ea_arms:
@@ -342,16 +382,6 @@ def fig_seeds(runs, out: Path) -> None:
 
 
 # --- Tables and report -------------------------------------------------------- #
-def _write_csv(path: Path, rows: list[dict]) -> None:
-    if not rows:
-        return
-    fields = list(dict.fromkeys(key for row in rows for key in row))
-    with path.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(rows)
-
-
 def summary_rows(per_seed: list[dict]) -> list[dict]:
     rows = []
     for arm in ARM_ORDER:
@@ -377,7 +407,7 @@ def summary_rows(per_seed: list[dict]) -> list[dict]:
     return rows
 
 
-def report(summary: list[dict], stats: list[dict], plateau: list[dict], span: list[dict]) -> str:
+def report(summary: list[dict], stats: list[dict], plateau: list[dict], span: list[dict], shape: list[dict]) -> str:
     lines = ["Final best distance to target (m), mean ± sd over seeds"]
     for r in summary:
         extra = (f"  collapsed {r['collapsed_seeds']}/{r['n']} {r['collapse_generation_range']}"
@@ -400,6 +430,12 @@ def report(summary: list[dict], stats: list[dict], plateau: list[dict], span: li
             mine = [r for r in span if r["arm"] == arm]
             lines.append(f"  {SHORT[arm]:20s} {np.mean([r['in_span_share'] for r in mine]):.3f}  "
                          f"(isotropic {np.mean([r['isotropic_share'] for r in mine]):.3f}, n={len(mine)})")
+    if shape:
+        lines.append("\nRealised steps (medians over non-zero logged steps)")
+        for r in shape:
+            lines.append(f"  {SHORT[r['arm']]:20s} zero steps {r['zero_step_share']:.1%}  "
+                         f"weights changed {r['weights_changed_median']:.0f}  step RMS {r['step_rms_median']:.4f}  "
+                         f"per changed weight {r['change_per_changed_weight_median']:.3f}")
     return "\n".join(lines)
 
 
@@ -416,14 +452,15 @@ def main(argv: list[str] | None = None) -> int:
     stats = statistical_tests(runs)
     plateau = plateaus(runs)
     span = step_span(runs)
+    shape = step_shape(runs)
     for name, rows in (("per_seed", per_seed), ("summary", summary), ("stats", stats),
-                       ("plateau", plateau), ("step_span", span)):
-        _write_csv(out / f"{name}.csv", rows)
+                       ("plateau", plateau), ("step_span", span), ("step_shape", shape)):
+        write_csv(out / f"{name}.csv", rows)
 
     fig_fitness(runs, out)
     fig_mechanism(runs, span, out)
     fig_seeds(runs, out)
-    text = report(summary, stats, plateau, span)
+    text = report(summary, stats, plateau, span, shape)
     (out / "report.txt").write_text(text + "\n")
     print(text)
     return 0

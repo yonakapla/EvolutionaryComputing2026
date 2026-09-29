@@ -83,6 +83,14 @@ class RunConfig:
         """Generations of canonical DE (population_size trials each) within the EA arms' budget."""
         return (self.budget - self.population_size) // self.population_size
 
+    def budget_for(self, arm: str) -> int:
+        if arm in DE_ARMS:
+            return self.population_size * (1 + self.de_generations)
+        return self.budget
+
+    def generations_for(self, arm: str) -> int:
+        return self.de_generations if arm in DE_ARMS else self.generations
+
     def replacement_probability_for(self, arm: str) -> float:
         if arm in (ARM_DIFFERENCE, ARM_NORMALISED, ARM_SIZE_MATCHED):
             return 0.0

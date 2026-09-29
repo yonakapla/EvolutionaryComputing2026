@@ -1,4 +1,6 @@
 import csv
+import json
+import shutil
 
 import numpy as np
 import pytest
@@ -24,9 +26,14 @@ def root(tmp_path_factory):
         initial = make_initial(cfg, make_streams(seed), fake_evaluator, 222)
         for arm in ALL_ARMS:
             recorder = RunRecorder(root / f"seed_{seed}" / arm, cfg, arm, FAKE_HASHES)
-            runner = run_random if arm == ARM_RANDOM else run_de if arm in DE_ARMS else run_arm
-            args = (cfg, initial, fake_evaluator, make_streams(seed), recorder)
-            recorder.complete(runner(*args) if arm == ARM_RANDOM else runner(cfg, arm, *args[1:]))
+            streams = make_streams(seed)
+            if arm == ARM_RANDOM:
+                summary = run_random(cfg, initial, fake_evaluator, streams, recorder)
+            elif arm in DE_ARMS:
+                summary = run_de(cfg, arm, initial, fake_evaluator, streams, recorder)
+            else:
+                summary = run_arm(cfg, arm, initial, fake_evaluator, streams, recorder)
+            recorder.complete(summary)
     return root
 
 
@@ -59,7 +66,7 @@ def test_signed_test_reports_direction_and_ci():
 def test_analysis_writes_every_output(root):
     assert fa.main([str(root)]) == 0
     out = root / "analysis"
-    for name in ("per_seed", "summary", "stats", "plateau", "step_span"):
+    for name in ("per_seed", "summary", "stats", "plateau", "step_span", "step_shape"):
         assert (out / f"{name}.csv").stat().st_size > 0
     for figure in ("fig_fitness", "fig_mechanism", "fig_seeds"):
         assert (out / f"{figure}.png").exists() and (out / f"{figure}.pdf").exists()
@@ -77,10 +84,26 @@ def test_factorial_family_is_holm_adjusted(root):
 
 
 def test_load_rejects_uneven_seed_sets(root, tmp_path):
-    (tmp_path / "seed_1" / "gaussian").mkdir(parents=True)
-    import shutil
-
-    shutil.copytree(root / "seed_11" / "gaussian", tmp_path / "seed_1" / "gaussian", dirs_exist_ok=True)
+    shutil.copytree(root / "seed_11" / "gaussian", tmp_path / "seed_1" / "gaussian")
     shutil.copytree(root / "seed_12", tmp_path / "seed_2")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="different seeds"):
         fa.load(tmp_path)
+
+
+def test_load_rejects_runs_from_different_setups(root, tmp_path):
+    shutil.copytree(root / "seed_11", tmp_path / "seed_11")
+    shutil.copytree(root / "seed_12", tmp_path / "seed_12")
+    config_file = tmp_path / "seed_12" / "gaussian" / "config.json"
+    meta = json.loads(config_file.read_text())
+    meta["config"]["body"] = "spider_8"
+    config_file.write_text(json.dumps(meta))
+    with pytest.raises(ValueError, match="different setups"):
+        fa.load(tmp_path)
+
+
+def test_step_shape_counts_zero_steps_and_changed_weights(root):
+    shape = {row["arm"]: row for row in fa.step_shape(fa.load(root))}
+    gaussian = shape["gaussian"]
+    assert gaussian["zero_step_share"] == 0.0
+    assert gaussian["weights_changed_median"] >= 1
+    assert gaussian["change_per_changed_weight_median"] >= gaussian["step_rms_median"] > 0

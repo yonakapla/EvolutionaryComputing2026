@@ -11,7 +11,6 @@ KIND_GAUSSIAN = "gaussian"
 KIND_NORMALISED = "normalised"
 KIND_SIZE_MATCHED = "size_matched"
 KIND_DE = "de"
-STEP_KINDS = {STEP_DIFFERENCE: KIND_DIFFERENCE, STEP_NORMALISED: KIND_NORMALISED, STEP_SIZE_MATCHED: KIND_SIZE_MATCHED}
 
 
 @dataclass(frozen=True)
@@ -43,8 +42,13 @@ def binomial_mask(length: int, rate: float, rng: np.random.Generator) -> np.ndar
 
 
 def shaped_step(difference: np.ndarray, noise: np.ndarray, step: str, target_rms: float) -> tuple[np.ndarray, str]:
-    """Turn F(b - c) into the arm's step. A zero difference has no direction to normalise,
-    so the normalised arm falls back to the Gaussian draw (logged as kind "gaussian")."""
+    """Turn F(b - c) into the arm's step.
+
+    Sizes are RMS over all coordinates, before the crossover mask. The normalised step therefore
+    has the Gaussian step's overall size, but keeps the difference's shape: when parents differ in
+    only a few weights, those few weights get large changes. A zero difference has no direction,
+    so the normalised arm then falls back to the Gaussian draw (logged as kind "gaussian").
+    """
     if step == STEP_DIFFERENCE:
         return difference, KIND_DIFFERENCE
     size = rms(difference)

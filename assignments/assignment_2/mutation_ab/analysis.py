@@ -15,6 +15,7 @@ import numpy as np
 from scipy import stats
 
 from mutation_ab.config import ARM_DIFFERENCE, ARM_MIXTURE, ARM_RANDOM, ARMS
+from mutation_ab.records import read_generations
 
 COLORS = {ARM_DIFFERENCE: "#1f77b4", ARM_MIXTURE: "#ff7f0e", ARM_RANDOM: "#7f7f7f"}
 LABELS = {ARM_DIFFERENCE: "A: differential", ARM_MIXTURE: "B: 10% Gaussian", ARM_RANDOM: "Random search"}
@@ -35,12 +36,6 @@ class ArmRun:
     generations: dict[str, np.ndarray]
     children: list[dict]
     config: dict
-
-
-def _read_generations(path: Path) -> dict[str, np.ndarray]:
-    with path.open() as handle:
-        rows = list(csv.DictReader(handle))
-    return {key: np.array([float(row[key]) for row in rows]) for key in rows[0]}
 
 
 def load_runs(root: Path, exclude: set[int] | None = None) -> dict[int, dict[str, ArmRun]]:
@@ -74,7 +69,7 @@ def load_runs(root: Path, exclude: set[int] | None = None) -> dict[int, dict[str
             elif meta["hashes"] != reference_hashes:
                 raise ValueError(f"{run_dir} uses different hashes {meta['hashes']} != {reference_hashes}")
             children = [json.loads(line) for line in (run_dir / "children.jsonl").read_text().splitlines()]
-            runs[seed][arm] = ArmRun(seed, arm, _read_generations(run_dir / "generations.csv"), children, meta["config"])
+            runs[seed][arm] = ArmRun(seed, arm, read_generations(run_dir / "generations.csv"), children, meta["config"])
     return runs
 
 
@@ -395,7 +390,7 @@ def h4_summary(per_seed: list[dict]) -> list[dict]:
     return rows
 
 
-def _write_csv(path: Path, rows: list[dict]) -> None:
+def write_csv(path: Path, rows: list[dict]) -> None:
     fields = sorted({key for row in rows for key in row})
     with path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
@@ -421,13 +416,13 @@ def main(argv: list[str] | None = None) -> int:
     per_seed = [
         {"seed": seed, "arm": arm, **seed_metrics(runs[seed][arm])} for seed in sorted(runs) for arm in ARMS
     ]
-    _write_csv(out / "seed_metrics.csv", per_seed)
+    write_csv(out / "seed_metrics.csv", per_seed)
     h4 = [
         {"seed": row["seed"], "arm": row["arm"], **{k: row[k] for k in ("improve_rate_difference", "improve_rate_gaussian", "improved_count", "useful_rate", "mean_gain")}}
         for row in per_seed
         if row["arm"] != ARM_RANDOM
     ]
-    _write_csv(out / "h4.csv", h4)
+    write_csv(out / "h4.csv", h4)
     report = {"seeds": sorted(runs), "excluded_seeds": sorted(exclude), "tests": statistical_tests(runs)}
     if args.poc:
         report["go_no_go"] = go_no_go(
@@ -435,7 +430,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         report["exploratory"] = True
         report["exploratory_note"] = "POC p-values are exploratory: small sample, calibration run, not confirmatory evidence."
-        _write_csv(out / "h4_summary.csv", h4_summary(per_seed))
+        write_csv(out / "h4_summary.csv", h4_summary(per_seed))
     (out / "analysis.json").write_text(json.dumps(report, indent=2, default=str))
     figures(runs, out)
 

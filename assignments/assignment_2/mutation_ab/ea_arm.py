@@ -26,16 +26,17 @@ class ArmContext:
     step: str = STEP_DIFFERENCE
 
 
-def _by_uid(individuals) -> list[Individual]:
+def by_uid(individuals) -> list[Individual]:
     return sorted(individuals, key=lambda ind: ind.tags["uid"])
 
 
-def _record_generation(ctx: ArmContext, survivors: list[Individual], newborn: list[Individual]) -> None:
+def record_generation(ctx: ArmContext, survivors: list[Individual], newborn: list[Individual]) -> None:
     genomes = np.array([ind.genotype for ind in survivors], dtype=float)
     fitness = np.array([ind.fitness for ind in survivors])
     ctx.best_so_far = min(ctx.best_so_far, float(fitness.min()))
     bred = [ind for ind in newborn if ind.tags["kind"] != "init"]
-    # Non-Gaussian proposals: population-derived in size (difference, size_matched, de) or fixed (normalised).
+    # diff_proposal_rms / n_difference cover every non-Gaussian proposal: difference, normalised,
+    # size_matched and DE steps. difference_rms is the size of F(b - c) itself, in every arm.
     steps = [ind.tags["proposal_rms"] for ind in bred if ind.tags["kind"] != KIND_GAUSSIAN]
     spreads = [ind.tags["difference_rms"] for ind in bred]
     ctx.recorder.generation(
@@ -50,7 +51,7 @@ def _record_generation(ctx: ArmContext, survivors: list[Individual], newborn: li
             "diff_proposal_rms": float(np.mean(steps)) if steps else float("nan"),
             "difference_rms": float(np.mean(spreads)) if spreads else float("nan"),
             "n_difference": len(steps),
-            "n_gaussian": sum(ind.tags["kind"] == "gaussian" for ind in newborn),
+            "n_gaussian": sum(ind.tags["kind"] == KIND_GAUSSIAN for ind in newborn),
             "evaluations": ctx.evaluations,
         }
     )
@@ -65,7 +66,7 @@ def log_step(ctx: ArmContext, proposal, genomes: np.ndarray) -> None:
 
 def reproduce(population: Population, ctx: ArmContext) -> Population:
     ctx.generation += 1
-    adults = _by_uid(population)
+    adults = by_uid(population)
     genomes = np.array([ind.genotype for ind in adults], dtype=float)
     fitness = np.array([ind.fitness for ind in adults])
     for _ in range(ctx.cfg.children_per_generation):
@@ -92,7 +93,7 @@ def reproduce(population: Population, ctx: ArmContext) -> Population:
 
 
 def evaluate_children(population: Population, ctx: ArmContext) -> Population:
-    for child in _by_uid(population.unevaluated):
+    for child in by_uid(population.unevaluated):
         started = time.perf_counter()
         result = ctx.evaluator(np.asarray(child.genotype, dtype=float))
         child.fitness = result.distance
@@ -110,7 +111,7 @@ def evaluate_children(population: Population, ctx: ArmContext) -> Population:
 
 
 def survive(population: Population, ctx: ArmContext) -> Population:
-    members = _by_uid(population)
+    members = by_uid(population)
     adults = [ind for ind in members if ind.tags["generation"] < ctx.generation]
     newborn = [ind for ind in members if ind.tags["generation"] == ctx.generation]
     elite = adults[
@@ -121,7 +122,7 @@ def survive(population: Population, ctx: ArmContext) -> Population:
     ]
     for adult in adults:
         adult.alive = adult is elite
-    _record_generation(ctx, _by_uid([elite, *newborn]), newborn)
+    record_generation(ctx, by_uid([elite, *newborn]), newborn)
     return population
 
 
@@ -142,7 +143,7 @@ def make_founders(ctx: ArmContext, initial: InitialPopulation) -> list[Individua
         ctx.next_uid += 1
         ctx.evaluations += 1
         founders.append(founder)
-    _record_generation(ctx, founders, founders)
+    record_generation(ctx, founders, founders)
     return founders
 
 

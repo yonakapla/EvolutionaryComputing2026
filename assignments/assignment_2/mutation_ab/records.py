@@ -29,6 +29,13 @@ GENERATION_FIELDS = (
 )
 
 
+def read_generations(path: Path) -> dict[str, np.ndarray]:
+    """generations.csv as one array per column."""
+    with Path(path).open() as handle:
+        rows = list(csv.DictReader(handle))
+    return {key: np.array([float(row[key]) for row in rows]) for key in rows[0]}
+
+
 def genome_sha1(genome) -> str:
     return hashlib.sha1(np.asarray(genome, dtype=np.float64).tobytes()).hexdigest()
 
@@ -45,7 +52,9 @@ def git_commit() -> dict:
 
 
 class RunRecorder:
-    def __init__(self, directory: Path, cfg: RunConfig, arm: str, hashes: dict[str, str]) -> None:
+    def __init__(
+        self, directory: Path, cfg: RunConfig, arm: str, hashes: dict[str, str], total_generations: int | None = None
+    ) -> None:
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=False)
         meta = {
@@ -68,7 +77,7 @@ class RunRecorder:
         self._adults: list[np.ndarray] = []
         self._steps: list[tuple[int, str, np.ndarray]] = []
         self._label = f"[seed {cfg.seed} {arm}]"
-        self._total_generations = cfg.generations
+        self._total_generations = total_generations or cfg.generations
         self._started = time.perf_counter()
 
     def _report(self, message: str) -> None:

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import mujoco as mj
 import numpy as np
 
+# The gecko's sizes (the default body); other bodies take theirs from the model via n_inputs().
 N_INPUTS = 29
 N_OUTPUTS = 6
 

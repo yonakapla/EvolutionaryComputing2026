@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ariel.ec import set_seed
 
-from mutation_ab.config import ALL_ARMS, ARM_RANDOM, ARMS, DE_ARMS, RunConfig
+from mutation_ab.config import ALL_ARMS, ARM_RANDOM, ARMS, DE_ARMS, WORLDS, RunConfig
 from mutation_ab.controller import genome_length, n_inputs
 from mutation_ab.de_arm import run_de
 from mutation_ab.ea_arm import run_arm
@@ -68,7 +68,7 @@ def run_seed(seed: int, out_root: Path, overrides: dict, arms: tuple[str, ...] =
         return {"seed": seed, "status": status, "wall_s": time.perf_counter() - started}
 
     for arm in arms:
-        recorder = RunRecorder(seed_dir / arm, cfg, arm, hashes)
+        recorder = RunRecorder(seed_dir / arm, cfg, arm, hashes, cfg.generations_for(arm))
         try:
             if arm == ARM_RANDOM:
                 summary = run_random(cfg, initial, evaluator, make_streams(seed), recorder)
@@ -95,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--arms", default=",".join(ARMS), help=f"comma-separated; any of {', '.join(ALL_ARMS)}")
     parser.add_argument("--body", default="gecko", help="a John Set body, e.g. gecko or spider_8")
-    parser.add_argument("--world", default="olympic", choices=("olympic", "flat"))
+    parser.add_argument("--world", default="olympic", choices=WORLDS)
     parser.add_argument("--heartbeat", type=float, default=60.0, help="seconds between overall progress lines; 0 disables")
     args = parser.parse_args(argv)
 
@@ -114,17 +114,19 @@ def main(argv: list[str] | None = None) -> int:
         "body": args.body,
         "world": args.world,
     }
-    budget = RunConfig(seed=0, **overrides).budget
+    reference = RunConfig(seed=0, **overrides)
+    budgets = {arm: reference.budget_for(arm) for arm in arms}
     args.out.mkdir(parents=True, exist_ok=True)
     print(
         f"Running seeds {seeds[0]}..{seeds[-1]} ({len(seeds)} seeds) x arms {', '.join(arms)}; "
-        f"{args.generations} generations, {budget} evaluations per arm, {args.workers} worker(s); "
+        f"{args.generations} generations, {reference.budget} evaluations per arm "
+        f"({reference.budget_for(DE_ARMS[0])} for canonical DE), {args.workers} worker(s); "
         f"output in {args.out}. Overall progress every {args.heartbeat:g}s; "
         f"per-run progress every 10 generations.",
         flush=True,
     )
 
-    with Heartbeat(args.out, seeds, arms, budget, args.heartbeat):
+    with Heartbeat(args.out, seeds, arms, budgets, args.heartbeat):
         if args.workers == 1:
             results = [run_seed(seed, args.out, overrides, arms) for seed in seeds]
         else:

@@ -67,3 +67,14 @@ uv run python -m mutation_ab.factorial_analysis mutation_ab/results/final_spider
 
 Writes `analysis/` inside the results folder: `report.txt`, `summary.csv`, `per_seed.csv`, `stats.csv`,
 `plateau.csv`, `step_span.csv` and `fig_fitness`, `fig_mechanism`, `fig_seeds` (PNG and PDF).
+
+Notes on the logged quantities:
+
+- `generations.csv`: `diff_proposal_rms` and `n_difference` cover every non-Gaussian proposal
+  (difference, normalised, size-matched and DE steps); `difference_rms` is the size of F(b − c)
+  itself in every arm, so it tracks the population spread even where the step ignores it.
+- The normalised arm fixes the step's RMS over all weights before the crossover mask. Population
+  differences are sparse, so its steps change few weights by a lot (see `step_shape.csv`); the
+  Gaussian arm changes about a fifth of the weights by small amounts.
+- Canonical DE generations cost `population_size` evaluations, EA generations `population_size - 1`;
+  fitness is compared at equal evaluations, per-generation quantities on each arm's own axis.

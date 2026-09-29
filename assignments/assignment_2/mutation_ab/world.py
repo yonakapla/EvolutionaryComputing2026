@@ -36,7 +36,7 @@ def _sha1(payload: bytes) -> str:
 def build_model(cfg: RunConfig) -> tuple[mj.MjModel, dict[str, str]]:
     mj.set_mjcb_control(None)
     body = getattr(john_set, cfg.body, None)
-    if body is None:
+    if not callable(body) or getattr(body, "__module__", None) != john_set.__name__:
         raise ValueError(f"unknown John Set body {cfg.body!r}")
     world = SeededOlympicArena(cfg.terrain_seed) if cfg.world == "olympic" else SimpleFlatWorld()
     world.spawn(body().spec, position=list(cfg.spawn), correct_collision_with_floor=True)

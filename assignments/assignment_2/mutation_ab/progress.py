@@ -35,11 +35,12 @@ def progress_line(evals: int, total: int, finished: int, runs: int, elapsed_s: f
 class Heartbeat:
     """Prints overall progress, read from the run directories, while seeds run in worker processes."""
 
-    def __init__(self, out: Path, seeds, arms, budget: int, interval_s: float) -> None:
+    def __init__(self, out: Path, seeds, arms, budget: int | dict[str, int], interval_s: float) -> None:
         self.out = Path(out)
         self.seeds = list(seeds)
         self.arms = tuple(arms)
-        self.total = len(self.seeds) * len(self.arms) * budget
+        per_seed = sum(budget[arm] for arm in self.arms) if isinstance(budget, dict) else budget * len(self.arms)
+        self.total = len(self.seeds) * per_seed
         self.interval_s = interval_s
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True)
