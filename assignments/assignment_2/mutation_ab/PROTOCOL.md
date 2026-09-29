@@ -81,5 +81,8 @@ stated.
 | Run | Arms | Change | Seeds | Question |
 | --- | --- | --- | --- | --- |
 | `supp_pop48` | `difference`, `gaussian` | population 48, 186 generations (8,790 evaluations) | 1000–1009 | Does the collapse depend on the small population? |
-| `supp_long` | `normalised`, `gaussian` | 1,600 generations | 1000–1009 | Do B and D plateau, and does the direction result hold? |
+| `supp_long` | `normalised`, `gaussian`, `de_rand_1_bin` | 1,600 generations (DE: 1,466) | 1000–1009 | Do B, D and textbook DE plateau, and do the direction and DE results hold? |
 | `supp_sigma` | `normalised`, `gaussian` | `--gaussian-sd` 0.05 and 0.3 | 1000–1004 | Does the size effect depend on σ = 0.15? |
+
+Textbook DE was added to `supp_long` on 29 Sep 2026, before the run started, because it was still
+improving at 800 generations and is the best-performing arm in the report.
