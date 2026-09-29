@@ -58,3 +58,12 @@ uv run python -m mutation_ab.run --out mutation_ab/results/final_spider --seeds 
 
 Each EA and DE run also writes `steps.npz` (every 10th generation's steps, for the PCA).
 The original A/B commands above still work unchanged (default arms, body and world).
+
+Analysis (2×2 contrasts with Holm and bootstrap CIs, plateau per arm, clone share, step-span PCA, figures):
+
+```bash
+uv run python -m mutation_ab.factorial_analysis mutation_ab/results/final_spider
+```
+
+Writes `analysis/` inside the results folder: `report.txt`, `summary.csv`, `per_seed.csv`, `stats.csv`,
+`plateau.csv`, `step_span.csv` and `fig_fitness`, `fig_mechanism`, `fig_seeds` (PNG and PDF).
