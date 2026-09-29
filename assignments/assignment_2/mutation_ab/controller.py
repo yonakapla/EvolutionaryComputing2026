@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import mujoco as mj
 import numpy as np
 
+
 @dataclass(frozen=True)
 class Layers:
     w1: np.ndarray

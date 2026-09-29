@@ -5,6 +5,7 @@ from itertools import pairwise
 import numpy as np
 import pytest
 from conftest import FAKE_HASHES, fake_evaluator
+
 from mutation_ab import run
 from mutation_ab.config import (
     ALL_ARMS,

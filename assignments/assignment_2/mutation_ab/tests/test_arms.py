@@ -5,6 +5,7 @@ from itertools import pairwise
 import numpy as np
 import pytest
 from conftest import FAKE_HASHES, fake_evaluator, make_fake_root
+
 from mutation_ab.config import ARM_DIFFERENCE, ARM_MIXTURE, ARMS, RunConfig
 from mutation_ab.ea_arm import run_arm
 from mutation_ab.evaluate import UnstableSimulation
