@@ -1,11 +1,11 @@
 Final best distance to target (m), mean ± sd over seeds
-  A: difference        1.444 ± 0.224  min 1.177  collapsed 10/10 28-63  clones 95.8%  success excl. clones 20.2%
-  C: size-matched      1.500 ± 0.164  min 1.166  collapsed 10/10 98-152  clones 85.8%  success excl. clones 19.2%
-  B: normalised        0.485 ± 0.377  min 0.002  collapsed 0/10   clones 21.2%  success excl. clones 11.8%
-  D: Gaussian          0.531 ± 0.313  min 0.191  collapsed 0/10   clones 0.0%  success excl. clones 13.6%
-  Mixture              0.937 ± 0.304  min 0.577  collapsed 0/10   clones 2.5%  success excl. clones 18.2%
-  DE (textbook)        0.349 ± 0.295  min 0.005  collapsed 0/10   clones 0.0%  success excl. clones 2.9%
-  DE (EA's F, Cr)      0.760 ± 0.147  min 0.543  collapsed 0/10   clones 0.0%  success excl. clones 1.3%
+  A: difference        1.444 ± 0.224  min 1.177  collapsed 10/10 28-63  frozen genes 260  Gaussian steps 0.0%  clones 95.8%  success excl. clones 20.2%
+  C: size-matched      1.500 ± 0.164  min 1.166  collapsed 10/10 98-152  frozen genes 260  Gaussian steps 0.0%  clones 85.8%  success excl. clones 19.2%
+  B: normalised        0.485 ± 0.377  min 0.002  collapsed 0/10   frozen genes 237  Gaussian steps 3.3%  clones 21.2%  success excl. clones 11.8%
+  D: Gaussian          0.531 ± 0.313  min 0.191  collapsed 0/10   frozen genes 1  Gaussian steps 100.0%  clones 0.0%  success excl. clones 13.6%
+  Mixture              0.937 ± 0.304  min 0.577  collapsed 0/10   frozen genes 97  Gaussian steps 10.0%  clones 2.5%  success excl. clones 18.2%
+  DE (textbook)        0.349 ± 0.295  min 0.005  collapsed 0/10   frozen genes 0  Gaussian steps 0.0%  clones 0.0%  success excl. clones 2.9%
+  DE (EA's F, Cr)      0.760 ± 0.147  min 0.543  collapsed 0/10   frozen genes 0  Gaussian steps 0.0%  clones 0.0%  success excl. clones 1.3%
   Random search        1.259 ± 0.098  min 1.029
 
 Tests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstrap CI)

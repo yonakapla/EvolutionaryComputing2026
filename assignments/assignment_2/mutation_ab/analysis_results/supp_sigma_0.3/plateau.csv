@@ -1,0 +1,6 @@
+arm,gain_last_100_generations,gain_last_50_generations,plateau_evaluations,plateau_generation
+difference,0.0,0.0,452,40
+size_matched,0.0,0.0,672,60
+normalised,0.002996727264921395,0.0,2542,230
+gaussian,0.0,0.0,892,80
+random,0.0,0.0,1112,100
