@@ -3,7 +3,7 @@ import json
 import pytest
 
 from mutation_ab import run
-from mutation_ab.config import ARMS
+from mutation_ab.config import ALL_ARMS, ARM_GAUSSIAN
 from mutation_ab.evaluate import UnstableSimulation
 
 TINY = ["--generations", "2", "--population", "4", "--duration", "0.2"]
@@ -43,7 +43,7 @@ def test_serial_and_parallel_runs_are_identical(tmp_path):
     assert run.main(["--out", str(serial), "--seeds", "900,901", "--workers", "1", *TINY]) == 0
     assert run.main(["--out", str(parallel), "--seeds", "900,901", "--workers", "2", *TINY]) == 0
     for seed in (900, 901):
-        for arm in ARMS:
+        for arm in ALL_ARMS:
             assert (parallel / f"seed_{seed}" / arm / "COMPLETE").exists()
             assert _records(serial, seed, arm) == _records(parallel, seed, arm)
 
@@ -61,8 +61,31 @@ def test_unstable_arm_is_marked_failed_and_others_finish(tmp_path, monkeypatch):
     monkeypatch.setattr(run, "evaluate", flaky)
     assert run.main(["--out", str(tmp_path), "--seeds", "902", "--workers", "1", *TINY]) == 1
     seed_dir = tmp_path / "seed_902"
-    failed = [arm for arm in ARMS if (seed_dir / arm / "FAILED.json").exists()]
+    failed = [arm for arm in ALL_ARMS if (seed_dir / arm / "FAILED.json").exists()]
     assert failed == ["difference"]
     assert not (seed_dir / "difference" / "COMPLETE").exists()
     assert (seed_dir / "mixture" / "COMPLETE").exists()
     assert (seed_dir / "random" / "COMPLETE").exists()
+
+
+def test_parse_arms():
+    assert run.parse_arms("difference,gaussian") == ("difference", "gaussian")
+    for bad in ("", "nope", "gaussian,gaussian"):
+        with pytest.raises(ValueError):
+            run.parse_arms(bad)
+
+
+def test_defaults_run_every_arm_on_the_spider(tmp_path):
+    assert run.main(["--out", str(tmp_path), "--seeds", "905", "--workers", "1", *TINY]) == 0
+    for arm in ALL_ARMS:
+        assert (tmp_path / "seed_905" / arm / "COMPLETE").exists()
+    config = json.loads((tmp_path / "seed_905" / ARM_GAUSSIAN / "config.json").read_text())
+    assert config["config"]["body"] == "spider_8"
+
+
+def test_gaussian_sd_option_reaches_the_config(tmp_path):
+    args = ["--out", str(tmp_path), "--seeds", "906", "--workers", "1", "--arms", ARM_GAUSSIAN,
+            "--gaussian-sd", "0.3", *TINY]
+    assert run.main(args) == 0
+    config = json.loads((tmp_path / "seed_906" / ARM_GAUSSIAN / "config.json").read_text())
+    assert config["config"]["gaussian_sd"] == 0.3

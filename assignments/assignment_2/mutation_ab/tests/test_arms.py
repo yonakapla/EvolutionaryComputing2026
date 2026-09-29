@@ -1,23 +1,18 @@
 import csv
-import json
 from itertools import pairwise
 
 import numpy as np
 import pytest
-from conftest import FAKE_HASHES, fake_evaluator, make_fake_root
+from conftest import FAKE_HASHES, LENGTH, TEST_ARMS, children, fake_evaluator, make_fake_root
 
-from mutation_ab.config import ARM_DIFFERENCE, ARM_MIXTURE, ARMS, RunConfig
-from mutation_ab.ea_arm import run_arm
+from mutation_ab.config import ARM_DIFFERENCE, ARM_MIXTURE, RunConfig
+from mutation_ab.ea_arm import run_ea
 from mutation_ab.evaluate import UnstableSimulation
 from mutation_ab.initial import make_initial
 from mutation_ab.records import RunRecorder
 from mutation_ab.streams import make_streams
 
 SMALL = {"generations": 5, "population_size": 6}
-
-
-def children(run_dir):
-    return [json.loads(line) for line in (run_dir / "children.jsonl").read_text().splitlines()]
 
 
 def generations(run_dir):
@@ -32,14 +27,14 @@ def root(tmp_path):
 
 def test_every_arm_spends_exactly_the_budget(root):
     budget = RunConfig(seed=3, **SMALL).budget
-    for arm in ARMS:
+    for arm in TEST_ARMS:
         assert len(children(root / "seed_3" / arm)) == budget
 
 
 def test_all_arms_share_the_initial_population(root):
     founders = {
         arm: [c["genome_sha1"] for c in children(root / "seed_3" / arm) if c["kind"] == "init"]
-        for arm in ARMS
+        for arm in TEST_ARMS
     }
     assert founders["difference"] == founders["mixture"] == founders["random"]
 
@@ -52,7 +47,7 @@ def test_elitism_never_loses_the_best(root):
 
 def test_adult_snapshots_cover_every_generation(root):
     adults = np.load(root / "seed_3" / ARM_DIFFERENCE / "adults.npz")["adults"]
-    assert adults.shape == (SMALL["generations"] + 1, SMALL["population_size"], 222)
+    assert adults.shape == (SMALL["generations"] + 1, SMALL["population_size"], LENGTH)
 
 
 def test_parents_and_donors_come_from_previous_survivors(root):
@@ -88,7 +83,7 @@ def test_full_probability_mixture_uses_only_gaussian_children(tmp_path):
 
 def test_unstable_evaluation_propagates(tmp_path):
     cfg = RunConfig(seed=6, **SMALL)
-    initial = make_initial(cfg, make_streams(6), fake_evaluator, 222)
+    initial = make_initial(cfg, make_streams(6), fake_evaluator, LENGTH)
     calls = {"n": 0}
 
     def exploding(genome):
@@ -99,4 +94,4 @@ def test_unstable_evaluation_propagates(tmp_path):
 
     recorder = RunRecorder(tmp_path / "run", cfg, ARM_DIFFERENCE, FAKE_HASHES)
     with pytest.raises(UnstableSimulation):
-        run_arm(cfg, ARM_DIFFERENCE, initial, exploding, make_streams(6), recorder)
+        run_ea(cfg, ARM_DIFFERENCE, initial, exploding, make_streams(6), recorder)

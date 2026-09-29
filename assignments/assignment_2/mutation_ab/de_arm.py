@@ -2,18 +2,10 @@
 each adult's trial replaces it only if the trial is at least as good."""
 
 import numpy as np
-from ariel.ec import EA, EAOperation, Population
+from ariel.ec import EAOperation, Population
 
 from mutation_ab.config import RunConfig
-from mutation_ab.ea_arm import (
-    ArmContext,
-    by_uid,
-    evaluate_children,
-    log_step,
-    make_child,
-    make_founders,
-    record_generation,
-)
+from mutation_ab.ea_arm import ArmContext, by_uid, evaluate_children, evolve, log_step, make_child, record_generation
 from mutation_ab.initial import Evaluator, InitialPopulation
 from mutation_ab.operators import de_trial
 from mutation_ab.records import RunRecorder
@@ -57,21 +49,10 @@ def run_de(
     if cfg.population_size < 4:
         raise ValueError("DE/rand/1 needs a target plus three distinct other members")
     scale_f, crossover_rate = cfg.de_parameters_for(arm)
-    # DE never swaps in Gaussian steps.
-    ctx = ArmContext(cfg, replacement_probability=0.0, evaluator=evaluator, streams=streams, recorder=recorder)
-    founders = make_founders(ctx, initial)
-    ea = EA(
-        Population(founders),
-        [
-            EAOperation(make_trials, ctx, scale_f, crossover_rate),
-            EAOperation(evaluate_children, ctx),
-            EAOperation(select_one_to_one, ctx),
-        ],
-        num_steps=cfg.de_generations,
-        is_maximisation=False,
-        quiet=True,
-        db_file_path=recorder.directory / "ariel.db",
-        db_handling="halt",
-    )
-    ea.run()
-    return {"evaluations": ctx.evaluations, "best_so_far": ctx.best_so_far}
+    ctx = ArmContext(cfg, arm, evaluator, streams, recorder)
+    operations = [
+        EAOperation(make_trials, ctx, scale_f, crossover_rate),
+        EAOperation(evaluate_children, ctx),
+        EAOperation(select_one_to_one, ctx),
+    ]
+    return evolve(ctx, initial, operations, cfg.de_generations)

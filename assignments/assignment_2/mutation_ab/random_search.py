@@ -5,7 +5,7 @@ import numpy as np
 from mutation_ab.config import RunConfig
 from mutation_ab.initial import Evaluator, InitialPopulation, record_founders
 from mutation_ab.metrics import genotype_diversity
-from mutation_ab.records import RunRecorder, genome_sha1
+from mutation_ab.records import RunRecorder, evaluation_record
 from mutation_ab.streams import Streams
 
 
@@ -51,24 +51,7 @@ def run_random(
             result = evaluator(genome)
             evaluations += 1
             batch.append(result.distance)
-            recorder.child(
-                {
-                    "uid": uid,
-                    "generation": generation,
-                    "kind": "random",
-                    "parent_uid": None,
-                    "donor_uids": [],
-                    "proposal_rms": None,
-                    "change_rms": None,
-                    "parent_distance": None,
-                    "parent_xy": None,
-                    "final_xy": list(result.final_xy),
-                    "warnings": result.warnings,
-                    "genome_sha1": genome_sha1(genome),
-                    "distance": result.distance,
-                    "wall_s": time.perf_counter() - started,
-                }
-            )
+            recorder.child(evaluation_record(uid, generation, "random", genome, result, time.perf_counter() - started))
             uid += 1
         best_so_far = min(best_so_far, min(batch))
         recorder.generation(_row(generation, batch, best_so_far, evaluations))

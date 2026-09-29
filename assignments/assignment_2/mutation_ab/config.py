@@ -6,7 +6,6 @@ from dataclasses import asdict, dataclass
 ARM_DIFFERENCE = "difference"
 ARM_MIXTURE = "mixture"
 ARM_RANDOM = "random"
-ARMS = (ARM_DIFFERENCE, ARM_MIXTURE, ARM_RANDOM)
 
 # Step size x step direction factorial (all inside the same generational EA frame).
 ARM_NORMALISED = "normalised"  # population direction, fixed size
@@ -21,17 +20,11 @@ DE_ARMS = (ARM_DE, ARM_DE_MATCHED)
 
 ALL_ARMS = (*FACTORIAL_ARMS, ARM_MIXTURE, *DE_ARMS, ARM_RANDOM)
 
-STEP_DIFFERENCE = "difference"
-STEP_NORMALISED = "normalised"
-STEP_SIZE_MATCHED = "size_matched"
-
-WORLDS = ("olympic", "flat")
-
 
 @dataclass(frozen=True)
 class RunConfig:
     seed: int
-    generations: int = 80
+    generations: int = 800
     population_size: int = 12
     tournament_size: int = 3
     duration: float = 15.0
@@ -41,12 +34,11 @@ class RunConfig:
     phase_hz: float = 1.0
     init_sd: float = 0.5
     gaussian_sd: float = 0.15
+    # F(b - c) of two initial genomes has SD 0.15, the default Gaussian step; --gaussian-sd leaves F alone.
     scale_f: float = 0.15 / (math.sqrt(2) * 0.5)
     crossover_rate: float = 0.2
     replacement_probability: float = 0.10
-    terrain_seed: int = 42
-    body: str = "gecko"
-    world: str = "olympic"
+    body: str = "spider_8"
     de_scale_f: float = 0.5
     de_crossover_rate: float = 0.9
     step_log_every: int = 10
@@ -65,8 +57,6 @@ class RunConfig:
             raise ValueError("crossover_rate must be in (0, 1]")
         if not 0.0 < self.de_crossover_rate <= 1.0:
             raise ValueError("de_crossover_rate must be in (0, 1]")
-        if self.world not in WORLDS:
-            raise ValueError(f"world must be one of {WORLDS}")
         if self.step_log_every < 1:
             raise ValueError("step_log_every must be >= 1")
 
@@ -99,10 +89,6 @@ class RunConfig:
         if arm == ARM_GAUSSIAN:
             return 1.0
         raise ValueError(f"arm {arm!r} has no mutation operator")
-
-    def step_for(self, arm: str) -> str:
-        """How a non-Gaussian step is built: F(b - c) as is, rescaled, or its size on a random direction."""
-        return {ARM_NORMALISED: STEP_NORMALISED, ARM_SIZE_MATCHED: STEP_SIZE_MATCHED}.get(arm, STEP_DIFFERENCE)
 
     def de_parameters_for(self, arm: str) -> tuple[float, float]:
         if arm == ARM_DE:

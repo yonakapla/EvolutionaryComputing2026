@@ -4,6 +4,7 @@
 """
 
 import argparse
+from dataclasses import fields
 from pathlib import Path
 
 import numpy as np
@@ -18,7 +19,12 @@ from mutation_ab.world import build_model
 
 
 def config_from(stored: dict) -> RunConfig:
-    return RunConfig(**{key: tuple(value) if isinstance(value, list) else value for key, value in stored.items()})
+    """RunConfig from a stored config.json. Older runs also stored world and terrain_seed."""
+    if stored.get("world", "flat") != "flat":
+        raise ValueError("only flat-world runs can be replayed")
+    known = {field.name for field in fields(RunConfig)}
+    return RunConfig(**{key: tuple(value) if isinstance(value, list) else value
+                        for key, value in stored.items() if key in known})
 
 
 def best_genome(run: Run, length: int) -> tuple[np.ndarray, float]:
@@ -76,7 +82,8 @@ def main(argv: list[str] | None = None) -> int:
           f"{int(np.sum(gaps < 1e-3))} within 1 mm, largest difference {gaps.max():.3g} m")
     contrast = size_contrast(rows)
     if contrast is not None:
-        print(f"size contrast from replays: {contrast.mean():+.3f} m, positive in {int(np.sum(contrast > 0))}/{len(contrast)}")
+        positive = int(np.sum(contrast > 0))
+        print(f"size contrast from replays: {contrast.mean():+.3f} m, positive in {positive}/{len(contrast)}")
     return 0
 
 

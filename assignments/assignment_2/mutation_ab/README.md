@@ -17,22 +17,20 @@ uv run pytest mutation_ab/tests -q
 
 ```bash
 uv run python -m mutation_ab.run --out mutation_ab/results/smoke --seeds 900,901 --arms difference,gaussian,random \
-  --body spider_8 --world flat --generations 2 --population 4 --duration 0.2
+  --generations 2 --population 4 --duration 0.2
 uv run python -m mutation_ab.analysis mutation_ab/results/smoke
 ```
 
 ## Final run
 
 ```bash
-uv run python -m mutation_ab.run --out mutation_ab/results/final_spider --seeds 1000-1009 \
-  --arms difference,normalised,size_matched,gaussian,mixture,de_rand_1_bin,de_rand_1_bin_matched,random \
-  --body spider_8 --world flat --generations 800 --workers 10
+uv run python -m mutation_ab.run --out mutation_ab/results/final_spider --seeds 1000-1009 --workers 10
 uv run python -m mutation_ab.analysis mutation_ab/results/final_spider
 ```
 
 Arms: the 2×2 `difference`, `normalised`, `size_matched`, `gaussian`; references `mixture`,
-`de_rand_1_bin`, `de_rand_1_bin_matched`; baseline `random`. Without `--arms`, `--body` and `--world`
-the runner uses the original A/B setup (difference, mixture and random on the gecko in OlympicArena).
+`de_rand_1_bin`, `de_rand_1_bin_matched`; baseline `random`. The defaults are the final experiment:
+all eight arms, spider_8 in `SimpleFlatWorld`, 800 generations; `--arms` and `--generations` select less.
 
 The analysis writes `analysis/` inside the results folder: `report.txt`, the tables `summary.csv`,
 `per_seed.csv`, `stats.csv`, `plateau.csv`, `step_shape.csv`, `step_span.csv`, and the figures
@@ -58,9 +56,9 @@ seeds, which is valid because none of them uses the Gaussian step size.
 
 ```bash
 uv run python -m mutation_ab.run --out mutation_ab/results/supp_pop48 --seeds 1000-1009 --arms difference,gaussian \
-  --body spider_8 --world flat --population 48 --generations 186 --workers 10
+  --population 48 --generations 186 --workers 10
 uv run python -m mutation_ab.run --out mutation_ab/results/supp_sigma_0.05 --seeds 1000-1004 --arms normalised,gaussian \
-  --body spider_8 --world flat --generations 800 --gaussian-sd 0.05 --workers 5
+  --gaussian-sd 0.05 --workers 5
 ```
 
 ## Replay
