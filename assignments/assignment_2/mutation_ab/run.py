@@ -123,11 +123,13 @@ def main(argv: list[str] | None = None) -> int:
     }
     reference = RunConfig(seed=0, **overrides)
     budgets = {arm: reference.budget_for(arm) for arm in arms}
+    de_note = (f" ({reference.budget_for(DE_ARMS[0])} for canonical DE)"
+               if any(arm in DE_ARMS for arm in arms) else "")
     args.out.mkdir(parents=True, exist_ok=True)
     print(
         f"Running seeds {seeds[0]}..{seeds[-1]} ({len(seeds)} seeds) x arms {', '.join(arms)}; "
-        f"{args.generations} generations, {reference.budget} evaluations per arm "
-        f"({reference.budget_for(DE_ARMS[0])} for canonical DE), {args.workers} worker(s); "
+        f"{args.generations} generations, {reference.budget} evaluations per arm{de_note}, "
+        f"{args.workers} worker(s); "
         f"output in {args.out}. Overall progress every {args.heartbeat:g}s; "
         f"per-run progress every 10 generations.",
         flush=True,

@@ -107,3 +107,10 @@ def test_step_shape_counts_zero_steps_and_changed_weights(root):
     assert gaussian["zero_step_share"] == 0.0
     assert gaussian["weights_changed_median"] >= 1
     assert gaussian["change_per_changed_weight_median"] >= gaussian["step_rms_median"] > 0
+
+
+def test_equivalent_generations_match_ea_generations():
+    # EA and random search: 12 initial evaluations, then 11 per generation.
+    np.testing.assert_allclose(fa.equivalent_generations([12, 23, 12 + 11 * 800], 12), [0, 1, 800])
+    # Canonical DE generation 733 (12 per generation) sits just below EA generation 800.
+    assert fa.equivalent_generations([12 + 12 * 733], 12)[0] == pytest.approx(799.6, abs=0.1)

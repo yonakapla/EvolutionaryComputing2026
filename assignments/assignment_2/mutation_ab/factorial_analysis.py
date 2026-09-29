@@ -287,9 +287,17 @@ def _style(ax, xlabel: str, ylabel: str) -> None:
     ax.set_ylabel(ylabel, color=INK, fontsize=9)
 
 
-def _band(ax, runs, arm: str, key: str, x_key: str = "evaluations", scale: float = 1e-3) -> None:
+def equivalent_generations(evaluations: np.ndarray, population_size: int) -> np.ndarray:
+    """Evaluations expressed as EA generations (population_size - 1 children each, after the
+    initial population). Exact for the EA arms and random search; for canonical DE it is the EA
+    generation with the same number of evaluations."""
+    return (np.asarray(evaluations, dtype=float) - population_size) / (population_size - 1)
+
+
+def _band(ax, runs, arm: str, key: str) -> None:
     values = np.array([run.generations[key] for run in runs[arm].values()])
-    x = mean_curve(runs, arm, x_key) * scale
+    population = next(iter(runs[arm].values())).config["population_size"]
+    x = equivalent_generations(mean_curve(runs, arm, "evaluations"), population)
     mean, sd = values.mean(axis=0), values.std(axis=0, ddof=1)
     ax.fill_between(x, mean - sd, mean + sd, color=COLORS[arm], alpha=0.12, linewidth=0)
     ax.plot(x, mean, color=COLORS[arm], linestyle=STYLES[arm], linewidth=2, label=SHORT[arm])
@@ -312,15 +320,27 @@ def _save(fig, out: Path, name: str) -> None:
 
 
 def fig_fitness(runs, out: Path) -> None:
-    """Best-so-far distance vs evaluations, mean ± sd over seeds: the 2x2, then the references."""
-    fig, axes = plt.subplots(1, 2, figsize=(10, 3.8), sharey=True)
+    """Best-so-far distance per generation, mean ± sd over seeds: the 2x2, then the references.
+    Canonical DE is drawn at equivalent generations (equal evaluations); the top axis gives evaluations."""
+    population = next(iter(next(iter(runs.values())).values())).config["population_size"]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.1), sharey=True)
     panels = [(FACTORIAL, "(a) Step size × step direction"), ((ARM_GAUSSIAN, *REFERENCES), "(b) References")]
     for ax, (arms, title) in zip(axes, panels, strict=True):
         for arm in (*arms, ARM_RANDOM):
             if arm in runs:
                 _band(ax, runs, arm, "best_so_far")
-        _style(ax, "evaluations (thousands)", "best distance to target (m)" if ax is axes[0] else "")
-        ax.set_title(title, loc="left", fontsize=10, color=INK)
+        _style(ax, "generation", "best distance to target (m)" if ax is axes[0] else "")
+        ax.set_title(title, loc="left", fontsize=10, color=INK, pad=22)
+        top = ax.secondary_xaxis(
+            "top",
+            functions=(lambda g: (population + (population - 1) * g) / 1000,
+                       lambda e: (e * 1000 - population) / (population - 1)),
+        )
+        top.set_xlabel("evaluations (thousands)", color=MUTED, fontsize=8)
+        top.tick_params(colors=MUTED, labelsize=7)
+        top.spines["top"].set_color(MUTED)
+    fig.text(0.5, -0.13, "Canonical DE is plotted at the EA generation with the same number of evaluations.",
+             ha="center", fontsize=7.5, color=MUTED)
     _shared_legend(fig, axes, ncol=4)
     _save(fig, out, "fig_fitness")
 
