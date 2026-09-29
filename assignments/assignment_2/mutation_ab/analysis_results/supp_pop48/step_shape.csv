@@ -1,0 +1,3 @@
+arm,change_per_changed_weight_median,step_rms_median,steps,weights_changed_median,zero_step_share
+difference,0.00020658256886883227,8.508167581947995e-05,8460,48.0,0.0
+gaussian,0.14891244551039762,0.06698410823772075,8460,53.0,0.0

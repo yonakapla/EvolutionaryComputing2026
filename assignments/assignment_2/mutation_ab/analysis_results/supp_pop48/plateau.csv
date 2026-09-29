@@ -1,0 +1,3 @@
+arm,gain_last_100_generations,gain_last_50_generations,plateau_evaluations,plateau_generation
+difference,0.009394459474872718,0.0030889245065836013,4278,90
+gaussian,0.1592901946635883,0.06438170380990293,,

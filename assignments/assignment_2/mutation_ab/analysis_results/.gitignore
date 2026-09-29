@@ -1,0 +1,3 @@
+# The repository ignores images and PDFs; keep the analysis figures.
+!*.png
+!*.pdf

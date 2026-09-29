@@ -1,0 +1,55 @@
+Final best distance to target (m), mean ± sd over seeds
+  A: difference        1.444 ± 0.224  min 1.177  collapsed 10/10 28-63  clones 95.8%  success excl. clones 20.2%
+  C: size-matched      1.500 ± 0.164  min 1.166  collapsed 10/10 98-152  clones 85.8%  success excl. clones 19.2%
+  B: normalised        0.485 ± 0.377  min 0.002  collapsed 0/10   clones 21.2%  success excl. clones 11.8%
+  D: Gaussian          0.531 ± 0.313  min 0.191  collapsed 0/10   clones 0.0%  success excl. clones 13.6%
+  Mixture              0.937 ± 0.304  min 0.577  collapsed 0/10   clones 2.5%  success excl. clones 18.2%
+  DE (textbook)        0.349 ± 0.295  min 0.005  collapsed 0/10   clones 0.0%  success excl. clones 2.9%
+  DE (EA's F, Cr)      0.760 ± 0.147  min 0.543  collapsed 0/10   clones 0.0%  success excl. clones 1.3%
+  Random search        1.259 ± 0.098  min 1.029
+
+Tests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstrap CI)
+  [factorial] size: shrinking - fixed = (A+C)/2 - (B+D)/2: +0.964 m [+0.784, +1.146]  positive 10/10  p=0.0020  Holm p=0.0059
+  [factorial] direction: population - random = (A+B)/2 - (C+D)/2: -0.051 m [-0.171, +0.061]  positive 5/10  p=0.5566  Holm p=1.0000
+  [factorial] interaction: (A-C) - (B-D): -0.009 m [-0.347, +0.331]  positive 6/10  p=1.0000  Holm p=1.0000
+  [direction within size] shrinking size: A - C: -0.056 m [-0.170, +0.052]  positive 4/10  p=0.4922  Holm p=0.9844
+  [direction within size] fixed size: B - D: -0.047 m [-0.326, +0.214]  positive 5/10  p=0.7695  Holm p=0.9844
+  [vs random search] A: difference - random: +0.186 m [+0.068, +0.304]  positive 7/10  p=0.0488  Holm p=0.0488
+  [vs random search] B: normalised - random: -0.774 m [-1.019, -0.503]  positive 1/10  p=0.0039  Holm p=0.0117
+  [vs random search] C: size-matched - random: +0.242 m [+0.132, +0.357]  positive 9/10  p=0.0059  Holm p=0.0117
+  [vs random search] D: Gaussian - random: -0.727 m [-0.908, -0.523]  positive 0/10  p=0.0020  Holm p=0.0078
+  [references (unadjusted)] Mixture - A: difference: -0.507 m [-0.703, -0.317]  positive 1/10  p=0.0039
+  [references (unadjusted)] Mixture - Random search: -0.321 m [-0.497, -0.146]  positive 2/10  p=0.0137
+  [references (unadjusted)] Mixture - D: Gaussian: +0.406 m [+0.177, +0.639]  positive 8/10  p=0.0137
+  [references (unadjusted)] DE (textbook) - D: Gaussian: -0.183 m [-0.353, +0.005]  positive 3/10  p=0.1055
+  [references (unadjusted)] DE (textbook) - Random search: -0.910 m [-1.094, -0.721]  positive 0/10  p=0.0020
+  [references (unadjusted)] DE (EA's F, Cr) - Random search: -0.498 m [-0.598, -0.389]  positive 0/10  p=0.0020
+  [references (unadjusted)] DE (textbook) - DE (EA's F, Cr): -0.412 m [-0.572, -0.240]  positive 1/10  p=0.0059
+
+Plateau (PROTOCOL.md rule on the mean curve)
+  A: difference        generation 40  gain last 50 gens 0.0000 m
+  C: size-matched      generation 70  gain last 50 gens 0.0000 m
+  B: normalised        generation 350  gain last 50 gens 0.0082 m
+  D: Gaussian          generation 140  gain last 50 gens 0.0000 m
+  Mixture              generation 230  gain last 50 gens 0.0156 m
+  DE (textbook)        generation 360  gain last 50 gens 0.0113 m
+  DE (EA's F, Cr)      generation 150  gain last 50 gens 0.0000 m
+  Random search        generation 70  gain last 50 gens 0.0000 m
+
+Share of step length inside the population span (mean over logged generations and seeds)
+  A: difference        0.571  (isotropic 0.038, n=33)
+  C: size-matched      0.038  (isotropic 0.038, n=63)
+  B: normalised        0.611  (isotropic 0.036, n=800)
+  D: Gaussian          0.042  (isotropic 0.042, n=800)
+  Mixture              0.332  (isotropic 0.042, n=800)
+  DE (textbook)        0.927  (isotropic 0.042, n=730)
+  DE (EA's F, Cr)      0.245  (isotropic 0.042, n=730)
+
+Realised steps (medians over non-zero logged steps)
+  A: difference        zero steps 96.4%  weights changed 6  step RMS 0.0000  per changed weight 0.000
+  C: size-matched      zero steps 86.4%  weights changed 51  step RMS 0.0000  per changed weight 0.000
+  B: normalised        zero steps 22.0%  weights changed 3  step RMS 0.0565  per changed weight 0.397
+  D: Gaussian          zero steps 0.0%  weights changed 53  step RMS 0.0671  per changed weight 0.149
+  Mixture              zero steps 2.5%  weights changed 10  step RMS 0.0008  per changed weight 0.004
+  DE (textbook)        zero steps 0.0%  weights changed 234  step RMS 0.6213  per changed weight 0.653
+  DE (EA's F, Cr)      zero steps 0.0%  weights changed 53  step RMS 0.3023  per changed weight 0.672

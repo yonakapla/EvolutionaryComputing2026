@@ -126,3 +126,9 @@ def test_plateau_generation():
     assert analysis.plateau_generation([flat_after_50, flat_after_50]) == 70
     still_falling = np.linspace(3.0, 1.0, 81)
     assert analysis.plateau_generation([flat_after_50, still_falling]) is None
+
+
+def test_out_option_writes_elsewhere(root, tmp_path):
+    out = tmp_path / "tracked" / "final"
+    assert analysis.main([str(root), "--out", str(out)]) == 0
+    assert (out / "report.txt").exists() and (out / "fig_fitness.pdf").exists()
