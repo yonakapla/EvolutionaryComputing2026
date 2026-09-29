@@ -1,16 +1,19 @@
-"""Reference arm: canonical DE/rand/1/bin (Storn & Price 1997) on ariel.ec.
-
-Unlike the generational arms, every adult is a target once per generation and its
-trial replaces it only if the trial is at least as close to the target (one-to-one
-survivor selection). The population size is constant; the shared initial population
-and the evaluation budget match the other arms.
-"""
+"""Reference arm: canonical DE/rand/1/bin (Storn & Price 1997) with one-to-one replacement:
+each adult's trial replaces it only if the trial is at least as good."""
 
 import numpy as np
-from ariel.ec import EA, EAOperation, Individual, Population
+from ariel.ec import EA, EAOperation, Population
 
 from mutation_ab.config import RunConfig
-from mutation_ab.ea_arm import ArmContext, by_uid, evaluate_children, log_step, make_founders, record_generation
+from mutation_ab.ea_arm import (
+    ArmContext,
+    by_uid,
+    evaluate_children,
+    log_step,
+    make_child,
+    make_founders,
+    record_generation,
+)
 from mutation_ab.initial import Evaluator, InitialPopulation
 from mutation_ab.operators import de_trial
 from mutation_ab.records import RunRecorder
@@ -21,24 +24,9 @@ def make_trials(population: Population, ctx: ArmContext, scale_f: float, crossov
     ctx.generation += 1
     targets = by_uid(population)
     genomes = np.array([ind.genotype for ind in targets], dtype=float)
-    for index, target in enumerate(targets):
+    for index in range(len(targets)):
         proposal = de_trial(genomes, index, scale_f, crossover_rate, ctx.streams)
-        trial = Individual()
-        trial.genotype = proposal.child.tolist()
-        trial.tags = {
-            "uid": ctx.next_uid,
-            "generation": ctx.generation,
-            "kind": proposal.kind,
-            "parent_uid": target.tags["uid"],
-            "donor_uids": [targets[d].tags["uid"] for d in proposal.donors],
-            "proposal_rms": proposal.proposal_rms,
-            "change_rms": proposal.change_rms,
-            "difference_rms": proposal.difference_rms,
-            "parent_distance": target.fitness,
-            "parent_xy": target.tags["final_xy"],
-        }
-        ctx.next_uid += 1
-        population.append(trial)
+        population.append(make_child(ctx, proposal, targets))
         log_step(ctx, proposal, genomes)
     return population
 
@@ -69,7 +57,7 @@ def run_de(
     if cfg.population_size < 4:
         raise ValueError("DE/rand/1 needs a target plus three distinct other members")
     scale_f, crossover_rate = cfg.de_parameters_for(arm)
-    # DE never replaces a step with Gaussian noise; the EA arms' step setting is unused here.
+    # DE never swaps in Gaussian steps.
     ctx = ArmContext(cfg, replacement_probability=0.0, evaluator=evaluator, streams=streams, recorder=recorder)
     founders = make_founders(ctx, initial)
     ea = EA(

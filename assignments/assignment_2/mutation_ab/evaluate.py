@@ -32,7 +32,7 @@ def evaluate(genome: np.ndarray, model: mj.MjModel, cfg: RunConfig) -> EvalResul
     layers = unpack(np.asarray(genome, dtype=float), n_inputs(model), cfg.hidden_size, model.nu)
     data = mj.MjData(model)
 
-    def control(m: mj.MjModel, d: mj.MjData) -> None:
+    def control(_model: mj.MjModel, d: mj.MjData) -> None:
         d.ctrl[:] = act(layers, observe(d, cfg.target_xy, cfg.phase_hz))
 
     mj.set_mjcb_control(control)

@@ -6,12 +6,18 @@ import numpy as np
 import pytest
 
 from mutation_ab.config import RunConfig
-from mutation_ab.controller import N_INPUTS, N_OUTPUTS, act, genome_length, observe, unpack
+from mutation_ab.controller import act, genome_length, observe, unpack
 from mutation_ab.evaluate import UnstableSimulation, evaluate
 from mutation_ab.records import RunRecorder, genome_sha1
-from mutation_ab.world import build_model, terrain_fingerprint
+from mutation_ab.world import build_model
 
 SHORT = RunConfig(seed=1, duration=0.2)
+N_INPUTS, N_OUTPUTS = 29, 6  # the gecko
+
+
+def terrain_fingerprint(terrain_seed: int) -> tuple[str, str]:
+    _, hashes = build_model(RunConfig(seed=0, terrain_seed=terrain_seed))
+    return hashes["terrain_sha1"], hashes["model_sha1"]
 
 
 @pytest.fixture(scope="module")

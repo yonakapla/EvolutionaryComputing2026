@@ -2,13 +2,7 @@
 
     uv run python -m mutation_ab.factorial_analysis mutation_ab/results/final_spider
 
-Writes <root>/analysis/: summary.csv (per arm), per_seed.csv, stats.csv, plateau.csv,
-step_span.csv, step_shape.csv, report.txt and the figures fig_fitness, fig_mechanism and
-fig_seeds (.png and .pdf). Every number in the figures is also in a CSV.
-
-Fitness is compared at equal evaluations. Per-generation quantities (collapse, step span,
-plateau) use each arm's own generations: a canonical DE generation costs population_size
-evaluations, an EA generation population_size - 1.
+Writes the tables, figures and report.txt to <root>/analysis/.
 """
 
 import argparse
@@ -37,27 +31,15 @@ from mutation_ab.config import (
 )
 from mutation_ab.records import read_generations
 
-FACTORIAL = FACTORIAL_ARMS
 REFERENCES = (ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED)
-# Reading order in tables and figures: the shrinking-size cells, the fixed-size cells, references, baseline.
+# Order in tables and figures: shrinking-size cells, fixed-size cells, references, baseline.
 ARM_ORDER = (ARM_DIFFERENCE, ARM_SIZE_MATCHED, ARM_NORMALISED, ARM_GAUSSIAN, *REFERENCES, ARM_RANDOM)
-LABELS = {
-    ARM_DIFFERENCE: "A: difference (population dir., shrinking size)",
-    ARM_NORMALISED: "B: normalised difference (population dir., fixed size)",
-    ARM_SIZE_MATCHED: "C: size-matched (random dir., shrinking size)",
-    ARM_GAUSSIAN: "D: Gaussian (random dir., fixed size)",
-    ARM_MIXTURE: "Mixture (10% Gaussian)",
-    ARM_DE: "Canonical DE (textbook F and Cr)",
-    ARM_DE_MATCHED: "Canonical DE (the EA arms' F and Cr)",
-    ARM_RANDOM: "Random search",
-}
 SHORT = {
     ARM_DIFFERENCE: "A: difference", ARM_NORMALISED: "B: normalised", ARM_SIZE_MATCHED: "C: size-matched",
     ARM_GAUSSIAN: "D: Gaussian", ARM_MIXTURE: "Mixture", ARM_DE: "DE (textbook)",
     ARM_DE_MATCHED: "DE (EA's F, Cr)", ARM_RANDOM: "Random search",
 }
-# One colour per arm in every figure, from a colour-blind-checked palette; random search is neutral grey.
-# Line style repeats the design for greyscale print: dashed = shrinking size, solid = fixed size.
+# Colour-blind-safe palette; dashed lines = shrinking step size, solid = fixed.
 COLORS = {
     ARM_DIFFERENCE: "#2a78d6", ARM_SIZE_MATCHED: "#eb6834", ARM_NORMALISED: "#1baf7a", ARM_GAUSSIAN: "#eda100",
     ARM_MIXTURE: "#e87ba4", ARM_DE: "#008300", ARM_DE_MATCHED: "#4a3aa7", ARM_RANDOM: "#52514e",
@@ -81,11 +63,7 @@ class Run:
 
 
 def load(root: Path) -> dict[str, dict[int, Run]]:
-    """arm -> seed -> Run, for every run with a COMPLETE marker.
-
-    Refuses to pool runs that differ in anything but the seed (body, world, budget, parameters,
-    terrain or model), and arms that cover different seeds.
-    """
+    """arm -> seed -> Run for every completed run. Runs must share one setup and one seed set."""
     runs: dict[str, dict[int, Run]] = {}
     setups: dict[str, list[str]] = {}
     for seed_dir in sorted(Path(root).glob("seed_*"), key=lambda p: int(p.name.split("_")[1])):
@@ -154,8 +132,7 @@ def signed_test(values: np.ndarray, rng: np.random.Generator) -> dict:
 
 
 def statistical_tests(runs) -> list[dict]:
-    """Families (Holm within each): the 2x2 contrasts, and each 2x2 arm vs random search.
-    Reference comparisons are reported unadjusted (descriptive). Positive = first-named is worse."""
+    """Holm within each family; reference comparisons unadjusted. Positive = first-named is worse."""
     rng = np.random.default_rng(0)
     rows: list[dict] = []
 
@@ -165,7 +142,7 @@ def statistical_tests(runs) -> list[dict]:
         for label, result in results.items():
             rows.append({"family": name, "test": label, **result, "p_holm": adjusted.get(label)})
 
-    if all(arm in runs for arm in FACTORIAL):
+    if all(arm in runs for arm in FACTORIAL_ARMS):
         a, b, c, d = (finals(runs, arm) for arm in (ARM_DIFFERENCE, ARM_NORMALISED, ARM_SIZE_MATCHED, ARM_GAUSSIAN))
         family("factorial", {
             "size: shrinking - fixed = (A+C)/2 - (B+D)/2": (a + c) / 2 - (b + d) / 2,
@@ -179,7 +156,7 @@ def statistical_tests(runs) -> list[dict]:
     if ARM_RANDOM in runs:
         random = finals(runs, ARM_RANDOM)
         family("vs random search", {
-            f"{SHORT[arm]} - random": finals(runs, arm) - random for arm in FACTORIAL if arm in runs
+            f"{SHORT[arm]} - random": finals(runs, arm) - random for arm in FACTORIAL_ARMS if arm in runs
         }, adjust=True)
     pairs = [(ARM_MIXTURE, ARM_DIFFERENCE), (ARM_MIXTURE, ARM_RANDOM), (ARM_MIXTURE, ARM_GAUSSIAN),
              (ARM_DE, ARM_GAUSSIAN), (ARM_DE, ARM_RANDOM), (ARM_DE_MATCHED, ARM_RANDOM),
@@ -212,8 +189,7 @@ def plateaus(runs) -> list[dict]:
 
 
 def in_span_fraction(adults: np.ndarray, generations: np.ndarray, deltas: np.ndarray) -> dict[int, tuple[float, int]]:
-    """Share of each step's squared length inside the span of the parent population's deviations
-    from its mean (at most n - 1 dimensions). Returns generation -> (mean share, span rank)."""
+    """Per generation: mean share of step length inside the parents' span, and the span's rank."""
     out: dict[int, tuple[float, int]] = {}
     for generation in np.unique(generations):
         parents = adults[generation - 1]
@@ -246,12 +222,7 @@ def step_span(runs) -> list[dict]:
 
 
 def step_shape(runs) -> list[dict]:
-    """What the logged steps actually change: share of zero steps (clones), how many weights a
-    non-zero step changes, its overall RMS and the RMS over the weights it changes.
-
-    This separates the normalised arm from the Gaussian one beyond direction: both have the same
-    RMS before the mask, but population differences are sparse, so normalised steps change few
-    weights by a lot."""
+    """Zero-step share, weights changed per step and change per changed weight, per arm."""
     rows = []
     for arm in runs:
         deltas = [np.load(run.directory / "steps.npz")["delta"].astype(float)
@@ -288,9 +259,7 @@ def _style(ax, xlabel: str, ylabel: str) -> None:
 
 
 def equivalent_generations(evaluations: np.ndarray, population_size: int) -> np.ndarray:
-    """Evaluations expressed as EA generations (population_size - 1 children each, after the
-    initial population). Exact for the EA arms and random search; for canonical DE it is the EA
-    generation with the same number of evaluations."""
+    """The EA generation that has used this many evaluations (used to place canonical DE)."""
     return (np.asarray(evaluations, dtype=float) - population_size) / (population_size - 1)
 
 
@@ -320,11 +289,10 @@ def _save(fig, out: Path, name: str) -> None:
 
 
 def fig_fitness(runs, out: Path) -> None:
-    """Best-so-far distance per generation, mean ± sd over seeds: the 2x2, then the references.
-    Canonical DE is drawn at equivalent generations (equal evaluations); the top axis gives evaluations."""
+    """Best-so-far distance per generation, mean ± sd over seeds; canonical DE at equal evaluations."""
     population = next(iter(next(iter(runs.values())).values())).config["population_size"]
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.1), sharey=True)
-    panels = [(FACTORIAL, "(a) Step size × step direction"), ((ARM_GAUSSIAN, *REFERENCES), "(b) References")]
+    panels = [(FACTORIAL_ARMS, "(a) Step size × step direction"), ((ARM_GAUSSIAN, *REFERENCES), "(b) References")]
     for ax, (arms, title) in zip(axes, panels, strict=True):
         for arm in (*arms, ARM_RANDOM):
             if arm in runs:
@@ -347,7 +315,7 @@ def fig_fitness(runs, out: Path) -> None:
 
 def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
     """(a) population difference size, (b) distinct genomes, (c) share of steps inside the population span."""
-    ea_arms = [arm for arm in (*FACTORIAL, ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED) if arm in runs]
+    ea_arms = [arm for arm in (*FACTORIAL_ARMS, ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED) if arm in runs]
     fig, axes = plt.subplots(1, 3, figsize=(13, 3.6))
     floor = 1e-6
     for arm in ea_arms:
@@ -409,7 +377,7 @@ def summary_rows(per_seed: list[dict]) -> list[dict]:
         if not mine:
             continue
         best = np.array([r["best_final"] for r in mine])
-        row = {"arm": arm, "label": LABELS[arm], "n": len(mine), "best_mean": float(best.mean()),
+        row = {"arm": arm, "label": SHORT[arm], "n": len(mine), "best_mean": float(best.mean()),
                "best_sd": float(best.std(ddof=1)), "best_median": float(np.median(best)),
                "best_min": float(best.min()), "best_max": float(best.max()),
                "evaluations": mine[0]["evaluations"]}

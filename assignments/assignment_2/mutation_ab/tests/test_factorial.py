@@ -1,10 +1,10 @@
 import csv
 import json
+from itertools import pairwise
 
 import numpy as np
 import pytest
 from conftest import FAKE_HASHES, fake_evaluator
-
 from mutation_ab import run
 from mutation_ab.config import (
     ALL_ARMS,
@@ -130,7 +130,7 @@ def test_de_arm_is_one_to_one_and_within_budget(tmp_path, arm):
     adults = np.load(tmp_path / arm / "adults.npz")["adults"]
     assert adults.shape == (cfg.de_generations + 1, cfg.population_size, LENGTH)
     worst = [float(row["worst"]) for row in rows]
-    assert all(later <= earlier for earlier, later in zip(worst, worst[1:]))
+    assert all(later <= earlier for earlier, later in pairwise(worst))
     trials = [r for r in records if r["kind"] == "de"]
     assert all(r["parent_uid"] not in r["donor_uids"] for r in trials)
 

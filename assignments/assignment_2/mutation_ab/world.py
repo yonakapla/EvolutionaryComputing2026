@@ -47,8 +47,3 @@ def build_model(cfg: RunConfig) -> tuple[mj.MjModel, dict[str, str]]:
         "model_sha1": _sha1(world.spec.to_xml().encode()),
     }
     return model, hashes
-
-
-def terrain_fingerprint(terrain_seed: int) -> tuple[str, str]:
-    _, hashes = build_model(RunConfig(seed=0, terrain_seed=terrain_seed))
-    return hashes["terrain_sha1"], hashes["model_sha1"]

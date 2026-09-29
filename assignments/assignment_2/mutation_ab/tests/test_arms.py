@@ -1,10 +1,10 @@
 import csv
 import json
+from itertools import pairwise
 
 import numpy as np
 import pytest
 from conftest import FAKE_HASHES, fake_evaluator, make_fake_root
-
 from mutation_ab.config import ARM_DIFFERENCE, ARM_MIXTURE, ARMS, RunConfig
 from mutation_ab.ea_arm import run_arm
 from mutation_ab.evaluate import UnstableSimulation
@@ -46,7 +46,7 @@ def test_all_arms_share_the_initial_population(root):
 def test_elitism_never_loses_the_best(root):
     for arm in (ARM_DIFFERENCE, ARM_MIXTURE):
         best = [float(r["best"]) for r in generations(root / "seed_3" / arm)]
-        assert all(later <= earlier for earlier, later in zip(best, best[1:]))
+        assert all(later <= earlier for earlier, later in pairwise(best))
 
 
 def test_adult_snapshots_cover_every_generation(root):

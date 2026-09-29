@@ -42,13 +42,8 @@ def binomial_mask(length: int, rate: float, rng: np.random.Generator) -> np.ndar
 
 
 def shaped_step(difference: np.ndarray, noise: np.ndarray, step: str, target_rms: float) -> tuple[np.ndarray, str]:
-    """Turn F(b - c) into the arm's step.
-
-    Sizes are RMS over all coordinates, before the crossover mask. The normalised step therefore
-    has the Gaussian step's overall size, but keeps the difference's shape: when parents differ in
-    only a few weights, those few weights get large changes. A zero difference has no direction,
-    so the normalised arm then falls back to the Gaussian draw (logged as kind "gaussian").
-    """
+    """Turn F(b - c) into the arm's step. Sizes are RMS before the crossover mask, so a sparse
+    difference gives few, large changes. A zero difference falls back to the Gaussian draw."""
     if step == STEP_DIFFERENCE:
         return difference, KIND_DIFFERENCE
     size = rms(difference)
