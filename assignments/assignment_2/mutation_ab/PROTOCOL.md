@@ -71,3 +71,15 @@ bootstrap 95% intervals. Reference arms are compared descriptively.
 - PCA of logged steps (`steps.npz`, every 10th generation): how much of the step variance
   lies in the ≤ 11 dimensions spanned by the population, per arm.
 - Behaviour of each arm's best controller: path, speed, falls.
+
+## Addendum (29 Sep 2026, after the final run): supplementary runs
+
+Added after seeing the final results, to answer reviewer-style questions. They are reported as
+supplementary checks, not as tests of the pre-registered hypotheses, and use the same setup unless
+stated.
+
+| Run | Arms | Change | Seeds | Question |
+| --- | --- | --- | --- | --- |
+| `supp_pop48` | `difference`, `gaussian` | population 48, 186 generations (8,790 evaluations) | 1000–1009 | Does the collapse depend on the small population? |
+| `supp_long` | `normalised`, `gaussian` | 1,600 generations | 1000–1009 | Do B and D plateau, and does the direction result hold? |
+| `supp_sigma` | `normalised`, `gaussian` | `--gaussian-sd` 0.05 and 0.3 | 1000–1004 | Does the size effect depend on σ = 0.15? |

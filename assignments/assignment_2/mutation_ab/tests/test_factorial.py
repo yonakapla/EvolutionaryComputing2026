@@ -188,3 +188,12 @@ def test_heartbeat_total_uses_each_arms_budget(tmp_path, capsys):
     with Heartbeat(tmp_path, [1, 2], (ARM_GAUSSIAN, ARM_DE), {ARM_GAUSSIAN: 892, ARM_DE: 888}, interval_s=3600):
         pass
     assert "(0/3,560 evals)" in capsys.readouterr().out
+
+
+def test_gaussian_sd_option_reaches_the_config(tmp_path):
+    args = ["--out", str(tmp_path), "--seeds", "906", "--workers", "1", "--arms", ARM_GAUSSIAN,
+            "--gaussian-sd", "0.3", "--generations", "1", "--population", "4", "--duration", "0.2",
+            "--heartbeat", "0"]
+    assert run.main(args) == 0
+    config = json.loads((tmp_path / "seed_906" / ARM_GAUSSIAN / "config.json").read_text())
+    assert config["config"]["gaussian_sd"] == 0.3

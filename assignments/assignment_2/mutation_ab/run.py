@@ -96,6 +96,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--arms", default=",".join(ARMS), help=f"comma-separated; any of {', '.join(ALL_ARMS)}")
     parser.add_argument("--body", default="gecko", help="a John Set body, e.g. gecko or spider_8")
     parser.add_argument("--world", default="olympic", choices=WORLDS)
+    parser.add_argument(
+        "--gaussian-sd",
+        type=float,
+        default=RunConfig(seed=0).gaussian_sd,
+        help="Gaussian step SD, also the normalised arm's fixed step size (F stays tied to 0.15)",
+    )
     parser.add_argument("--heartbeat", type=float, default=60.0, help="seconds between overall progress lines; 0 disables")
     args = parser.parse_args(argv)
 
@@ -113,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
         "duration": args.duration,
         "body": args.body,
         "world": args.world,
+        "gaussian_sd": args.gaussian_sd,
     }
     reference = RunConfig(seed=0, **overrides)
     budgets = {arm: reference.budget_for(arm) for arm in arms}
