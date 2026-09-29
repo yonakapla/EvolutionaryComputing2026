@@ -4,16 +4,10 @@ import shutil
 
 import numpy as np
 import pytest
-from conftest import FAKE_HASHES, fake_evaluator
+from conftest import LENGTH, make_fake_root
 
 from mutation_ab import analysis
-from mutation_ab.config import ALL_ARMS, ARM_RANDOM, DE_ARMS, RunConfig
-from mutation_ab.de_arm import run_de
-from mutation_ab.ea_arm import run_arm
-from mutation_ab.initial import make_initial
-from mutation_ab.random_search import run_random
-from mutation_ab.records import RunRecorder
-from mutation_ab.streams import make_streams
+from mutation_ab.config import ALL_ARMS
 
 SMALL = {"generations": 6, "population_size": 6, "step_log_every": 2}
 
@@ -21,26 +15,9 @@ SMALL = {"generations": 6, "population_size": 6, "step_log_every": 2}
 SEEDS = (11, 12, 13, 14, 15, 16)
 
 
-def fake_runs(root, arms, **overrides):
-    for seed in SEEDS:
-        cfg = RunConfig(seed=seed, **SMALL, **overrides)
-        initial = make_initial(cfg, make_streams(seed), fake_evaluator, 222)
-        for arm in arms:
-            recorder = RunRecorder(root / f"seed_{seed}" / arm, cfg, arm, FAKE_HASHES)
-            streams = make_streams(seed)
-            if arm == ARM_RANDOM:
-                summary = run_random(cfg, initial, fake_evaluator, streams, recorder)
-            elif arm in DE_ARMS:
-                summary = run_de(cfg, arm, initial, fake_evaluator, streams, recorder)
-            else:
-                summary = run_arm(cfg, arm, initial, fake_evaluator, streams, recorder)
-            recorder.complete(summary)
-    return root
-
-
 @pytest.fixture(scope="module")
 def root(tmp_path_factory):
-    return fake_runs(tmp_path_factory.mktemp("final"), ALL_ARMS)
+    return make_fake_root(tmp_path_factory.mktemp("final"), SEEDS, ALL_ARMS, **SMALL)
 
 
 def test_in_span_fraction_is_one_inside_and_zero_orthogonal():
@@ -101,7 +78,7 @@ def test_load_rejects_runs_from_different_setups(root, tmp_path):
     shutil.copytree(root / "seed_12", tmp_path / "seed_12")
     config_file = tmp_path / "seed_12" / "gaussian" / "config.json"
     meta = json.loads(config_file.read_text())
-    meta["config"]["body"] = "spider_8"
+    meta["config"]["body"] = "gecko"
     config_file.write_text(json.dumps(meta))
     with pytest.raises(ValueError, match="different setups"):
         analysis.load(tmp_path)
@@ -129,9 +106,9 @@ def test_holm_known_values():
 
 def test_plateau_generation():
     flat_after_50 = np.concatenate([np.linspace(3.0, 1.0, 51), np.full(30, 1.0)])
-    assert analysis.plateau_generation([flat_after_50, flat_after_50]) == 70
+    assert analysis.plateau_generation(flat_after_50) == 70
     still_falling = np.linspace(3.0, 1.0, 81)
-    assert analysis.plateau_generation([flat_after_50, still_falling]) is None
+    assert analysis.plateau_generation(still_falling) is None
 
 
 def test_out_option_writes_elsewhere(root, tmp_path):
@@ -146,17 +123,17 @@ def test_frozen_genes_and_gaussian_step_share(root):
     gaussian, difference = rows[("gaussian", 11)], rows[("difference", 11)]
     assert gaussian["gaussian_step_share"] == 1.0
     assert difference["gaussian_step_share"] == 0.0
-    assert 0 <= difference["frozen_genes_final"] <= 222
+    assert 0 <= difference["frozen_genes_final"] <= LENGTH
 
 
 def test_sigma_run_borrows_sigma_free_arms(root, tmp_path):
-    sigma = fake_runs(tmp_path / "sigma", ("normalised", "gaussian"), gaussian_sd=0.3)
+    sigma = make_fake_root(tmp_path / "sigma", SEEDS, ("normalised", "gaussian"), gaussian_sd=0.3, **SMALL)
     runs = analysis.borrow_sigma_free_arms(analysis.load(sigma), root)
     assert set(runs) == {"difference", "size_matched", "normalised", "gaussian", "random"}
     assert [r["family"] for r in analysis.statistical_tests(runs)].count("factorial") == 3
 
 
 def test_borrowing_refuses_a_different_setup(root, tmp_path):
-    other = fake_runs(tmp_path / "other", ("normalised", "gaussian"), crossover_rate=0.5)
+    other = make_fake_root(tmp_path / "other", SEEDS, ("normalised", "gaussian"), crossover_rate=0.5, **SMALL)
     with pytest.raises(ValueError, match="differs"):
         analysis.borrow_sigma_free_arms(analysis.load(other), root)

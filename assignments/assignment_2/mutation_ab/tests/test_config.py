@@ -4,7 +4,17 @@ from pathlib import Path
 
 import pytest
 
-from mutation_ab.config import ARM_DIFFERENCE, ARM_MIXTURE, ARM_RANDOM, RunConfig
+from mutation_ab.config import (
+    ARM_DE,
+    ARM_DE_MATCHED,
+    ARM_DIFFERENCE,
+    ARM_GAUSSIAN,
+    ARM_MIXTURE,
+    ARM_NORMALISED,
+    ARM_RANDOM,
+    ARM_SIZE_MATCHED,
+    RunConfig,
+)
 from mutation_ab.streams import make_streams
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -79,3 +89,27 @@ def test_src_ariel_is_untouched():
         cwd=REPO_ROOT,
         check=True,
     )
+
+
+def test_arm_settings():
+    cfg = RunConfig(seed=1)
+    assert cfg.replacement_probability_for(ARM_GAUSSIAN) == 1.0
+    for arm in (ARM_DIFFERENCE, ARM_NORMALISED, ARM_SIZE_MATCHED):
+        assert cfg.replacement_probability_for(arm) == 0.0
+    assert cfg.de_parameters_for(ARM_DE) == (0.5, 0.9)
+    assert cfg.de_parameters_for(ARM_DE_MATCHED) == (cfg.scale_f, cfg.crossover_rate)
+
+
+def test_de_budget_never_exceeds_ea_budget():
+    for generations in (5, 80, 800):
+        cfg = RunConfig(seed=1, generations=generations)
+        de_evaluations = cfg.population_size * (1 + cfg.de_generations)
+        assert cfg.budget - cfg.population_size < de_evaluations <= cfg.budget
+
+
+def test_de_budget_and_generations_per_arm():
+    cfg = RunConfig(seed=1, generations=80)
+    assert cfg.budget_for(ARM_GAUSSIAN) == cfg.budget
+    assert cfg.budget_for(ARM_DE) == 12 * (1 + cfg.de_generations) == 888
+    assert cfg.generations_for(ARM_DE) == cfg.de_generations
+    assert cfg.generations_for(ARM_GAUSSIAN) == 80

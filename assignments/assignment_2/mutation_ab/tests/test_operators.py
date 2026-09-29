@@ -2,11 +2,11 @@ import math
 
 import numpy as np
 import pytest
+from conftest import LENGTH, population
 
-from mutation_ab.config import RunConfig
+from mutation_ab.config import ARM_DIFFERENCE, ARM_GAUSSIAN, RunConfig
 from mutation_ab.metrics import genotype_diversity, rms, unique_genomes
 from mutation_ab.operators import (
-    KIND_DIFFERENCE,
     KIND_GAUSSIAN,
     binomial_mask,
     draw_donors,
@@ -15,13 +15,6 @@ from mutation_ab.operators import (
     tournament,
 )
 from mutation_ab.streams import make_streams
-
-LENGTH = 222
-
-
-def population(seed=0, size=12):
-    rng = np.random.default_rng(seed)
-    return rng.normal(0, 0.5, (size, LENGTH)), rng.random(size)
 
 
 def test_rms_and_diversity_known_values():
@@ -64,19 +57,19 @@ def test_mask_forces_one_coordinate(rate, expected):
 
 def test_identical_population_gives_zero_difference_step():
     genomes = np.tile(np.random.default_rng(3).normal(size=LENGTH), (12, 1))
-    proposal = propose_child(genomes, np.zeros(12), RunConfig(seed=1), 0.0, make_streams(1))
-    assert proposal.kind == KIND_DIFFERENCE
+    proposal = propose_child(genomes, np.zeros(12), RunConfig(seed=1), ARM_DIFFERENCE, make_streams(1))
+    assert proposal.kind == ARM_DIFFERENCE
     assert proposal.proposal_rms == 0.0
     assert proposal.change_rms == 0.0
     np.testing.assert_array_equal(proposal.child, genomes[proposal.parent])
 
 
-@pytest.mark.parametrize(("probability", "kind"), [(0.0, KIND_DIFFERENCE), (1.0, KIND_GAUSSIAN)])
-def test_replacement_probability_extremes(probability, kind):
+@pytest.mark.parametrize(("arm", "kind"), [(ARM_DIFFERENCE, ARM_DIFFERENCE), (ARM_GAUSSIAN, KIND_GAUSSIAN)])
+def test_pure_arms_propose_one_kind(arm, kind):
     genomes, fitness = population()
     streams = make_streams(5)
     kinds = {
-        propose_child(genomes, fitness, RunConfig(seed=5), probability, streams).kind
+        propose_child(genomes, fitness, RunConfig(seed=5), arm, streams).kind
         for _ in range(200)
     }
     assert kinds == {kind}
@@ -85,7 +78,7 @@ def test_replacement_probability_extremes(probability, kind):
 def test_child_changes_only_masked_coordinates_by_delta():
     genomes, fitness = population()
     cfg = RunConfig(seed=6)
-    proposal = propose_child(genomes, fitness, cfg, 0.0, make_streams(6))
+    proposal = propose_child(genomes, fitness, cfg, ARM_DIFFERENCE, make_streams(6))
     parent = genomes[proposal.parent]
     b, c = proposal.donors
     delta = cfg.scale_f * (genomes[b] - genomes[c])
@@ -100,8 +93,8 @@ def test_arms_consume_random_streams_identically():
     cfg = RunConfig(seed=9)
     control, treatment = make_streams(9), make_streams(9)
     for _ in range(50):
-        propose_child(genomes, fitness, cfg, 0.0, control)
-        propose_child(genomes, fitness, cfg, 1.0, treatment)
+        propose_child(genomes, fitness, cfg, ARM_DIFFERENCE, control)
+        propose_child(genomes, fitness, cfg, ARM_GAUSSIAN, treatment)
     for name in ("selection", "mask", "gaussian", "replacement"):
         assert getattr(control, name).random() == getattr(treatment, name).random()
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import numpy as np
 from ariel.ec import EA, EAOperation, Individual, Population
 
-from mutation_ab.config import STEP_DIFFERENCE, RunConfig
+from mutation_ab.config import RunConfig
 from mutation_ab.initial import Evaluator, InitialPopulation, record_founders
 from mutation_ab.metrics import genotype_diversity, unique_genomes
 from mutation_ab.operators import KIND_GAUSSIAN, Proposal, elite_index, propose_child
@@ -15,7 +15,7 @@ from mutation_ab.streams import Streams
 @dataclass
 class ArmContext:
     cfg: RunConfig
-    replacement_probability: float
+    arm: str
     evaluator: Evaluator
     streams: Streams
     recorder: RunRecorder
@@ -23,7 +23,6 @@ class ArmContext:
     next_uid: int = 0
     evaluations: int = 0
     best_so_far: float = float("inf")
-    step: str = STEP_DIFFERENCE
 
 
 def by_uid(individuals) -> list[Individual]:
@@ -69,7 +68,7 @@ def reproduce(population: Population, ctx: ArmContext) -> Population:
     genomes = np.array([ind.genotype for ind in adults], dtype=float)
     fitness = np.array([ind.fitness for ind in adults])
     for _ in range(ctx.cfg.children_per_generation):
-        proposal = propose_child(genomes, fitness, ctx.cfg, ctx.replacement_probability, ctx.streams, ctx.step)
+        proposal = propose_child(genomes, fitness, ctx.cfg, ctx.arm, ctx.streams)
         population.append(make_child(ctx, proposal, adults))
         log_step(ctx, proposal, genomes)
     return population
@@ -100,6 +99,7 @@ def evaluate_children(population: Population, ctx: ArmContext) -> Population:
         started = time.perf_counter()
         result = ctx.evaluator(np.asarray(child.genotype, dtype=float))
         child.fitness = result.distance
+        # ariel's tags setter merges, so the tags set in make_child are kept.
         child.tags = {"final_xy": list(result.final_xy), "warnings": result.warnings}
         ctx.evaluations += 1
         ctx.recorder.child(
@@ -150,7 +150,22 @@ def make_founders(ctx: ArmContext, initial: InitialPopulation) -> list[Individua
     return founders
 
 
-def run_arm(
+def evolve(ctx: ArmContext, initial: InitialPopulation, operations: list[EAOperation], generations: int) -> dict:
+    """Run an ariel.ec EA from the shared founders; the EA and DE arms differ only in their operations."""
+    ea = EA(
+        Population(make_founders(ctx, initial)),
+        operations,
+        num_steps=generations,
+        is_maximisation=False,
+        quiet=True,
+        db_file_path=ctx.recorder.directory / "ariel.db",
+        db_handling="halt",
+    )
+    ea.run()
+    return {"evaluations": ctx.evaluations, "best_so_far": ctx.best_so_far}
+
+
+def run_ea(
     cfg: RunConfig,
     arm: str,
     initial: InitialPopulation,
@@ -158,23 +173,6 @@ def run_arm(
     streams: Streams,
     recorder: RunRecorder,
 ) -> dict:
-    ctx = ArmContext(
-        cfg, cfg.replacement_probability_for(arm), evaluator, streams, recorder, step=cfg.step_for(arm)
-    )
-    founders = make_founders(ctx, initial)
-
-    ea = EA(
-        Population(founders),
-        [
-            EAOperation(reproduce, ctx),
-            EAOperation(evaluate_children, ctx),
-            EAOperation(survive, ctx),
-        ],
-        num_steps=cfg.generations,
-        is_maximisation=False,
-        quiet=True,
-        db_file_path=recorder.directory / "ariel.db",
-        db_handling="halt",
-    )
-    ea.run()
-    return {"evaluations": ctx.evaluations, "best_so_far": ctx.best_so_far}
+    ctx = ArmContext(cfg, arm, evaluator, streams, recorder)
+    operations = [EAOperation(reproduce, ctx), EAOperation(evaluate_children, ctx), EAOperation(survive, ctx)]
+    return evolve(ctx, initial, operations, cfg.generations)

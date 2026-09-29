@@ -40,6 +40,26 @@ def genome_sha1(genome) -> str:
     return hashlib.sha1(np.asarray(genome, dtype=np.float64).tobytes()).hexdigest()
 
 
+def evaluation_record(uid: int, generation: int, kind: str, genome, result, wall_s: float) -> dict:
+    """The children.jsonl record of an evaluation without a parent (founders and random search)."""
+    return {
+        "uid": uid,
+        "generation": generation,
+        "kind": kind,
+        "parent_uid": None,
+        "donor_uids": [],
+        "proposal_rms": None,
+        "change_rms": None,
+        "parent_distance": None,
+        "parent_xy": None,
+        "final_xy": list(result.final_xy),
+        "warnings": result.warnings,
+        "genome_sha1": genome_sha1(genome),
+        "distance": result.distance,
+        "wall_s": wall_s,
+    }
+
+
 def git_commit() -> dict:
     here = Path(__file__).resolve().parent
     commit = subprocess.run(

@@ -6,7 +6,7 @@ import numpy as np
 
 from mutation_ab.config import RunConfig
 from mutation_ab.evaluate import EvalResult
-from mutation_ab.records import RunRecorder, genome_sha1
+from mutation_ab.records import RunRecorder, evaluation_record
 from mutation_ab.streams import Streams
 
 Evaluator = Callable[[np.ndarray], EvalResult]
@@ -32,24 +32,5 @@ def make_initial(
 
 
 def record_founders(initial: InitialPopulation, recorder: RunRecorder) -> None:
-    for uid, (genome, result, wall) in enumerate(
-        zip(initial.genomes, initial.results, initial.wall_s, strict=True)
-    ):
-        recorder.child(
-            {
-                "uid": uid,
-                "generation": 0,
-                "kind": "init",
-                "parent_uid": None,
-                "donor_uids": [],
-                "proposal_rms": None,
-                "change_rms": None,
-                "parent_distance": None,
-                "parent_xy": None,
-                "final_xy": list(result.final_xy),
-                "warnings": result.warnings,
-                "genome_sha1": genome_sha1(genome),
-                "distance": result.distance,
-                "wall_s": wall,
-            }
-        )
+    for uid, (genome, result, wall) in enumerate(zip(initial.genomes, initial.results, initial.wall_s, strict=True)):
+        recorder.child(evaluation_record(uid, 0, "init", genome, result, wall))

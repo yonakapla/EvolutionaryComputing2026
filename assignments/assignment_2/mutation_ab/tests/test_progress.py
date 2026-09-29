@@ -40,7 +40,7 @@ def test_progress_line_before_any_evaluation():
 
 def test_heartbeat_prints_a_final_line_on_exit(tmp_path, capsys):
     write_run(tmp_path, 800, "difference", 10, "COMPLETE")
-    with Heartbeat(tmp_path, [800], ARMS, budget=10, interval_s=3600):
+    with Heartbeat(tmp_path, [800], ARMS, dict.fromkeys(ARMS, 10), interval_s=3600):
         pass
     last = capsys.readouterr().out.strip().splitlines()[-1]
     assert "overall 33% (10/30 evals)" in last
@@ -48,6 +48,13 @@ def test_heartbeat_prints_a_final_line_on_exit(tmp_path, capsys):
 
 
 def test_heartbeat_disabled_prints_nothing(tmp_path, capsys):
-    with Heartbeat(tmp_path, [800], ARMS, budget=10, interval_s=0):
+    with Heartbeat(tmp_path, [800], ARMS, dict.fromkeys(ARMS, 10), interval_s=0):
         pass
     assert capsys.readouterr().out == ""
+
+
+def test_heartbeat_total_uses_each_arms_budget(tmp_path, capsys):
+    budgets = {"gaussian": 892, "de_rand_1_bin": 888}
+    with Heartbeat(tmp_path, [1, 2], tuple(budgets), budgets, interval_s=3600):
+        pass
+    assert "(0/3,560 evals)" in capsys.readouterr().out

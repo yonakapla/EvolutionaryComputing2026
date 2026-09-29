@@ -10,12 +10,12 @@ from pathlib import Path
 
 from ariel.ec import set_seed
 
-from mutation_ab.config import ALL_ARMS, ARM_RANDOM, ARMS, DE_ARMS, WORLDS, RunConfig
+from mutation_ab.config import ALL_ARMS, ARM_RANDOM, DE_ARMS, RunConfig
 from mutation_ab.controller import genome_length, n_inputs
 from mutation_ab.de_arm import run_de
-from mutation_ab.ea_arm import run_arm
+from mutation_ab.ea_arm import run_ea
 from mutation_ab.evaluate import UnstableSimulation, evaluate
-from mutation_ab.initial import make_initial
+from mutation_ab.initial import Evaluator, InitialPopulation, make_initial
 from mutation_ab.progress import Heartbeat
 from mutation_ab.random_search import run_random
 from mutation_ab.records import RunRecorder
@@ -49,7 +49,16 @@ def parse_arms(text: str) -> tuple[str, ...]:
     return arms
 
 
-def run_seed(seed: int, out_root: Path, overrides: dict, arms: tuple[str, ...] = ARMS) -> dict:
+def run_one(cfg: RunConfig, arm: str, initial: InitialPopulation, evaluator: Evaluator, recorder: RunRecorder) -> dict:
+    streams = make_streams(cfg.seed)
+    if arm == ARM_RANDOM:
+        return run_random(cfg, initial, evaluator, streams, recorder)
+    if arm in DE_ARMS:
+        return run_de(cfg, arm, initial, evaluator, streams, recorder)
+    return run_ea(cfg, arm, initial, evaluator, streams, recorder)
+
+
+def run_seed(seed: int, out_root: Path, overrides: dict, arms: tuple[str, ...] = ALL_ARMS) -> dict:
     started = time.perf_counter()
     cfg = RunConfig(seed=seed, **overrides)
     set_seed(seed)
@@ -70,12 +79,7 @@ def run_seed(seed: int, out_root: Path, overrides: dict, arms: tuple[str, ...] =
     for arm in arms:
         recorder = RunRecorder(seed_dir / arm, cfg, arm, hashes, cfg.generations_for(arm))
         try:
-            if arm == ARM_RANDOM:
-                summary = run_random(cfg, initial, evaluator, make_streams(seed), recorder)
-            elif arm in DE_ARMS:
-                summary = run_de(cfg, arm, initial, evaluator, make_streams(seed), recorder)
-            else:
-                summary = run_arm(cfg, arm, initial, evaluator, make_streams(seed), recorder)
+            summary = run_one(cfg, arm, initial, evaluator, recorder)
         except UnstableSimulation as error:
             recorder.fail(error)
             status[arm] = "failed"
@@ -86,23 +90,22 @@ def run_seed(seed: int, out_root: Path, overrides: dict, arms: tuple[str, ...] =
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Differential vs Gaussian-replacement mutation A/B")
+    parser = argparse.ArgumentParser(description="Step size x step direction experiment (see PROTOCOL.md)")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--seeds", required=True, help="e.g. 700-705 or 800,801")
-    parser.add_argument("--generations", type=int, default=80)
+    parser.add_argument("--generations", type=int, default=RunConfig(seed=0).generations)
     parser.add_argument("--population", type=int, default=12)
     parser.add_argument("--duration", type=float, default=15.0)
     parser.add_argument("--workers", type=int, default=1)
-    parser.add_argument("--arms", default=",".join(ARMS), help=f"comma-separated; any of {', '.join(ALL_ARMS)}")
-    parser.add_argument("--body", default="gecko", help="a John Set body, e.g. gecko or spider_8")
-    parser.add_argument("--world", default="olympic", choices=WORLDS)
+    parser.add_argument("--arms", default=",".join(ALL_ARMS), help=f"comma-separated; any of {', '.join(ALL_ARMS)}")
+    parser.add_argument("--body", default=RunConfig(seed=0).body, help="a John Set body")
     parser.add_argument(
         "--gaussian-sd",
         type=float,
         default=RunConfig(seed=0).gaussian_sd,
         help="Gaussian step SD, also the normalised arm's fixed step size (F stays tied to 0.15)",
     )
-    parser.add_argument("--heartbeat", type=float, default=60.0, help="seconds between overall progress lines; 0 disables")
+    parser.add_argument("--heartbeat", type=float, default=60.0, help="seconds between progress lines; 0 disables")
     args = parser.parse_args(argv)
 
     try:
@@ -118,7 +121,6 @@ def main(argv: list[str] | None = None) -> int:
         "population_size": args.population,
         "duration": args.duration,
         "body": args.body,
-        "world": args.world,
         "gaussian_sd": args.gaussian_sd,
     }
     reference = RunConfig(seed=0, **overrides)

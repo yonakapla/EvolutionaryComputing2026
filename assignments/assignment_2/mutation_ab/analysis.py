@@ -101,7 +101,7 @@ def borrow_sigma_free_arms(runs, reference_root: Path) -> dict[str, dict[int, Ru
     for arm in SIGMA_FREE_ARMS:
         borrowed = {seed: reference[arm][seed] for seed in seeds}
         for run in borrowed.values():
-            differing = {k for k in own if k not in ("seed", "gaussian_sd") and own[k] != run.config[k]}
+            differing = {k for k in own if k not in ("seed", "gaussian_sd") and own[k] != run.config.get(k)}
             if differing:
                 raise ValueError(f"{run.directory} differs in {sorted(differing)}")
         runs[arm] = borrowed
@@ -156,11 +156,10 @@ def holm(pvalues: dict[str, float]) -> dict[str, float]:
 
 
 def plateau_generation(
-    curves: list[np.ndarray], start: int = 40, every: int = 10, window: int = 15, gain: float = 0.005
+    curve: np.ndarray, start: int = 40, every: int = 10, window: int = 15, gain: float = 0.005
 ) -> int | None:
-    last = min(len(curve) for curve in curves) - 1
-    for generation in range(start, last + 1, every):
-        if all(curve[generation - window] - curve[generation] < gain for curve in curves):
+    for generation in range(start, len(curve), every):
+        if curve[generation - window] - curve[generation] < gain:
             return generation
     return None
 
@@ -218,7 +217,7 @@ def plateaus(runs) -> list[dict]:
     rows = []
     for arm in runs:
         curve = mean_curve(runs, arm)
-        generation = plateau_generation([curve])
+        generation = plateau_generation(curve)
         evaluations = mean_curve(runs, arm, "evaluations")
         rows.append({
             "arm": arm,
@@ -300,15 +299,22 @@ def _style(ax, xlabel: str, ylabel: str) -> None:
     ax.set_ylabel(ylabel, color=INK, fontsize=9)
 
 
-def equivalent_generations(evaluations: np.ndarray, population_size: int) -> np.ndarray:
+def population_size(runs) -> int:
+    return next(iter(next(iter(runs.values())).values())).config["population_size"]
+
+
+def equivalent_generations(evaluations, population: int):
     """The EA generation that has used this many evaluations (used to place canonical DE)."""
-    return (np.asarray(evaluations, dtype=float) - population_size) / (population_size - 1)
+    return (np.asarray(evaluations, dtype=float) - population) / (population - 1)
+
+
+def evaluations_at(generations, population: int):
+    return population + (population - 1) * np.asarray(generations, dtype=float)
 
 
 def _band(ax, runs, arm: str, key: str) -> None:
     values = np.array([run.generations[key] for run in runs[arm].values()])
-    population = next(iter(runs[arm].values())).config["population_size"]
-    x = equivalent_generations(mean_curve(runs, arm, "evaluations"), population)
+    x = equivalent_generations(mean_curve(runs, arm, "evaluations"), population_size(runs))
     mean, sd = values.mean(axis=0), values.std(axis=0, ddof=1)
     ax.fill_between(x, mean - sd, mean + sd, color=COLORS[arm], alpha=0.12, linewidth=0)
     ax.plot(x, mean, color=COLORS[arm], linestyle=STYLES[arm], linewidth=2, label=SHORT[arm])
@@ -333,7 +339,7 @@ def _save(fig, out: Path, name: str) -> None:
 
 def fig_fitness(runs, out: Path) -> None:
     """Best-so-far distance per generation, mean ± sd over seeds; canonical DE at equal evaluations."""
-    population = next(iter(next(iter(runs.values())).values())).config["population_size"]
+    population = population_size(runs)
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.1), sharey=True)
     panels = [(FACTORIAL_ARMS, "(a) Step size × step direction"), ((ARM_GAUSSIAN, *REFERENCES), "(b) References")]
     for ax, (arms, title) in zip(axes, panels, strict=True):
@@ -344,8 +350,8 @@ def fig_fitness(runs, out: Path) -> None:
         ax.set_title(title, loc="left", fontsize=10, color=INK, pad=22)
         top = ax.secondary_xaxis(
             "top",
-            functions=(lambda g: (population + (population - 1) * g) / 1000,
-                       lambda e: (e * 1000 - population) / (population - 1)),
+            functions=(lambda g: evaluations_at(g, population) / 1000,
+                       lambda e: equivalent_generations(e * 1000, population)),
         )
         top.set_xlabel("evaluations (thousands)", color=MUTED, fontsize=8)
         top.tick_params(colors=MUTED, labelsize=7)
@@ -372,8 +378,7 @@ def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
     axes[0].set_yscale("log")
     _style(axes[0], "generation", f"RMS of F(b − c), median (floor {floor:g})")
     axes[0].set_title("(a) Population difference size", loc="left", fontsize=10, color=INK)
-    population = next(iter(runs[ea_arms[0]].values())).config["population_size"]
-    _style(axes[1], "generation", f"distinct genomes (of {population}), mean")
+    _style(axes[1], "generation", f"distinct genomes (of {population_size(runs)}), mean")
     axes[1].set_title("(b) Collapse", loc="left", fontsize=10, color=INK)
 
     for arm in ea_arms:
@@ -434,7 +439,8 @@ def summary_rows(per_seed: list[dict]) -> list[dict]:
                "evaluations": mine[0]["evaluations"]}
         if arm != ARM_RANDOM:
             collapsed = [r["collapse_generation"] for r in mine if r["collapse_generation"] is not None]
-            excluding = [r["success_rate_excluding_clones"] for r in mine if r["success_rate_excluding_clones"] is not None]
+            excluding = [r["success_rate_excluding_clones"] for r in mine]
+            excluding = [value for value in excluding if value is not None]
             row |= {
                 "collapsed_seeds": len(collapsed),
                 "collapse_generation_range": f"{min(collapsed)}-{max(collapsed)}" if collapsed else "",
@@ -452,7 +458,8 @@ def report(summary: list[dict], stats: list[dict], plateau: list[dict], span: li
     lines = ["Final best distance to target (m), mean ± sd over seeds"]
     for r in summary:
         extra = (f"  collapsed {r['collapsed_seeds']}/{r['n']} {r['collapse_generation_range']}"
-                 f"  frozen genes {r['frozen_genes_final_median']:.0f}  Gaussian steps {r['gaussian_step_share_mean']:.1%}"
+                 f"  frozen genes {r['frozen_genes_final_median']:.0f}"
+                 f"  Gaussian steps {r['gaussian_step_share_mean']:.1%}"
                  f"  clones {r['clone_share_mean']:.1%}  success excl. clones "
                  f"{r['success_rate_excluding_clones_mean'] or 0:.1%}") if "clone_share_mean" in r else ""
         lines.append(f"  {SHORT[r['arm']]:20s} {r['best_mean']:.3f} ± {r['best_sd']:.3f}  "
