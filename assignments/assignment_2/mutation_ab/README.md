@@ -1,6 +1,8 @@
-# Mutation A/B: differential mutation vs 10% Gaussian replacement
+# Mutation experiments for Assignment 2
 
-Assignment 2 experiment. Design: `docs/superpowers/specs/2026-09-28-a2-mutation-ab-design.md`.
+Two experiments share this package: the original A/B (differential mutation vs 10% Gaussian
+replacement, on the gecko in OlympicArena) and the final step size × step direction experiment
+on spider_8 in a flat world, whose design and protocol are in `PROTOCOL.md`.
 
 Run everything from `assignments/assignment_2` with the repository environment (`uv sync` at the repository root).
 
