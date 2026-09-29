@@ -1,0 +1,67 @@
+# Step size × step direction in small-population neuroevolution
+
+Assignment 2 experiment: why does DE-style difference mutation fall behind Gaussian mutation when
+evolving a spider_8 controller to walk to a target? Design, hypotheses and supplementary runs are in
+`PROTOCOL.md`.
+
+Run everything from `assignments/assignment_2` with the repository environment (`uv sync` at the
+repository root).
+
+## Tests
+
+```bash
+uv run pytest mutation_ab/tests -q
+```
+
+## Smoke run (seconds)
+
+```bash
+uv run python -m mutation_ab.run --out mutation_ab/results/smoke --seeds 900,901 --arms difference,gaussian,random \
+  --body spider_8 --world flat --generations 2 --population 4 --duration 0.2
+uv run python -m mutation_ab.analysis mutation_ab/results/smoke
+```
+
+## Final run
+
+```bash
+uv run python -m mutation_ab.run --out mutation_ab/results/final_spider --seeds 1000-1009 \
+  --arms difference,normalised,size_matched,gaussian,mixture,de_rand_1_bin,de_rand_1_bin_matched,random \
+  --body spider_8 --world flat --generations 800 --workers 10
+uv run python -m mutation_ab.analysis mutation_ab/results/final_spider
+```
+
+Arms: the 2×2 `difference`, `normalised`, `size_matched`, `gaussian`; references `mixture`,
+`de_rand_1_bin`, `de_rand_1_bin_matched`; baseline `random`. Without `--arms`, `--body` and `--world`
+the runner uses the original A/B setup (difference, mixture and random on the gecko in OlympicArena).
+
+The analysis writes `analysis/` inside the results folder: `report.txt`, the tables `summary.csv`,
+`per_seed.csv`, `stats.csv`, `plateau.csv`, `step_shape.csv`, `step_span.csv`, and the figures
+`fig_fitness`, `fig_mechanism`, `fig_seeds` (PNG and PDF).
+
+## Progress output
+
+While running, the main process prints an overall line every 60 s (change with `--heartbeat SECONDS`,
+`0` turns it off), for example:
+
+```
+15:05:55  overall 64% (63,910/99,360 evals) · 230 s/10k evals · runs done 10/30 · ETA 15:21
+```
+
+Each (seed, arm) run also prints its best distance every 10 generations and a `done` or `FAILED` line.
+
+## Layout
+
+Each `results/<name>/seed_<s>/<arm>/` holds `config.json` (configuration, hashes, git commit),
+`children.jsonl` (every evaluation), `generations.csv`, `adults.npz`, `steps.npz` (the steps of every
+10th generation), `ariel.db` and `COMPLETE`, or `FAILED.json` if a simulation diverged. Existing
+directories are never overwritten.
+
+## Notes on the logged quantities
+
+- `diff_proposal_rms` and `n_difference` in `generations.csv` cover every non-Gaussian step
+  (difference, normalised, size-matched and DE); `difference_rms` is the size of F(b − c) in every arm.
+- The normalised arm fixes the step's RMS over all weights before the crossover mask. Population
+  differences are sparse, so its steps change few weights by a lot (`step_shape.csv`); Gaussian steps
+  change about a fifth of the weights by small amounts.
+- A canonical DE generation costs `population_size` evaluations, an EA generation `population_size - 1`.
+  Fitness is plotted at equal evaluations; other per-generation quantities use each arm's own generations.
