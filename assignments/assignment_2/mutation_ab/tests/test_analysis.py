@@ -18,13 +18,14 @@ from mutation_ab.streams import make_streams
 SMALL = {"generations": 6, "population_size": 6, "step_log_every": 2}
 
 
-@pytest.fixture(scope="module")
-def root(tmp_path_factory):
-    root = tmp_path_factory.mktemp("final")
-    for seed in (11, 12, 13, 14, 15, 16):
-        cfg = RunConfig(seed=seed, **SMALL)
+SEEDS = (11, 12, 13, 14, 15, 16)
+
+
+def fake_runs(root, arms, **overrides):
+    for seed in SEEDS:
+        cfg = RunConfig(seed=seed, **SMALL, **overrides)
         initial = make_initial(cfg, make_streams(seed), fake_evaluator, 222)
-        for arm in ALL_ARMS:
+        for arm in arms:
             recorder = RunRecorder(root / f"seed_{seed}" / arm, cfg, arm, FAKE_HASHES)
             streams = make_streams(seed)
             if arm == ARM_RANDOM:
@@ -35,6 +36,11 @@ def root(tmp_path_factory):
                 summary = run_arm(cfg, arm, initial, fake_evaluator, streams, recorder)
             recorder.complete(summary)
     return root
+
+
+@pytest.fixture(scope="module")
+def root(tmp_path_factory):
+    return fake_runs(tmp_path_factory.mktemp("final"), ALL_ARMS)
 
 
 def test_in_span_fraction_is_one_inside_and_zero_orthogonal():
@@ -132,3 +138,25 @@ def test_out_option_writes_elsewhere(root, tmp_path):
     out = tmp_path / "tracked" / "final"
     assert analysis.main([str(root), "--out", str(out)]) == 0
     assert (out / "report.txt").exists() and (out / "fig_fitness.pdf").exists()
+
+
+def test_frozen_genes_and_gaussian_step_share(root):
+    rows = {(r["arm"], r["seed"]): r for r in (analysis.seed_metrics(run) for arm in analysis.load(root).values()
+                                                  for run in arm.values())}
+    gaussian, difference = rows[("gaussian", 11)], rows[("difference", 11)]
+    assert gaussian["gaussian_step_share"] == 1.0
+    assert difference["gaussian_step_share"] == 0.0
+    assert 0 <= difference["frozen_genes_final"] <= 222
+
+
+def test_sigma_run_borrows_sigma_free_arms(root, tmp_path):
+    sigma = fake_runs(tmp_path / "sigma", ("normalised", "gaussian"), gaussian_sd=0.3)
+    runs = analysis.borrow_sigma_free_arms(analysis.load(sigma), root)
+    assert set(runs) == {"difference", "size_matched", "normalised", "gaussian", "random"}
+    assert [r["family"] for r in analysis.statistical_tests(runs)].count("factorial") == 3
+
+
+def test_borrowing_refuses_a_different_setup(root, tmp_path):
+    other = fake_runs(tmp_path / "other", ("normalised", "gaussian"), crossover_rate=0.5)
+    with pytest.raises(ValueError, match="differs"):
+        analysis.borrow_sigma_free_arms(analysis.load(other), root)

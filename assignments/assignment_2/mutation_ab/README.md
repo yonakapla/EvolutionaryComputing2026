@@ -46,9 +46,31 @@ Raw runs stay out of git (`results/` is ignored); the analysis of each experimen
 ```bash
 uv run python -m mutation_ab.analysis mutation_ab/results/final_spider --out mutation_ab/analysis_results/final_spider
 uv run python -m mutation_ab.analysis mutation_ab/results/supp_pop48 --out mutation_ab/analysis_results/supp_pop48
+uv run python -m mutation_ab.analysis mutation_ab/results/supp_sigma_0.05 --out mutation_ab/analysis_results/supp_sigma_0.05 \
+  --sigma-free-arms-from mutation_ab/results/final_spider
 ```
 
-The outputs have no timestamps, so git shows a change only when a result changes.
+The outputs have no timestamps, so git shows a change only when a result changes. The σ runs only
+contain B and D; `--sigma-free-arms-from` adds A, C and random search from the final run for the same
+seeds, which is valid because none of them uses the Gaussian step size.
+
+## Supplementary runs
+
+```bash
+uv run python -m mutation_ab.run --out mutation_ab/results/supp_pop48 --seeds 1000-1009 --arms difference,gaussian \
+  --body spider_8 --world flat --population 48 --generations 186 --workers 10
+uv run python -m mutation_ab.run --out mutation_ab/results/supp_sigma_0.05 --seeds 1000-1004 --arms normalised,gaussian \
+  --body spider_8 --world flat --generations 800 --gaussian-sd 0.05 --workers 5
+```
+
+## Replay
+
+Replays the best controller of every run and compares it with the recorded distance; on the machine
+that produced the runs every replay is exact.
+
+```bash
+uv run python -m mutation_ab.replay mutation_ab/results/final_spider --out mutation_ab/analysis_results/final_spider/replay.csv
+```
 
 ## Progress output
 

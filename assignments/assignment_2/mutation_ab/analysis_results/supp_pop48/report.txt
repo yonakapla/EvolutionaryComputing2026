@@ -1,6 +1,6 @@
 Final best distance to target (m), mean ± sd over seeds
-  A: difference        0.939 ± 0.276  min 0.580  collapsed 0/10   clones 0.0%  success excl. clones 24.2%
-  D: Gaussian          0.200 ± 0.162  min 0.006  collapsed 0/10   clones 0.0%  success excl. clones 19.3%
+  A: difference        0.939 ± 0.276  min 0.580  collapsed 0/10   frozen genes 4  Gaussian steps 0.0%  clones 0.0%  success excl. clones 24.2%
+  D: Gaussian          0.200 ± 0.162  min 0.006  collapsed 0/10   frozen genes 0  Gaussian steps 100.0%  clones 0.0%  success excl. clones 19.3%
 
 Tests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstrap CI)
 

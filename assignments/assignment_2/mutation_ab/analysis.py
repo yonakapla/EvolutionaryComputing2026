@@ -29,6 +29,7 @@ from mutation_ab.config import (
     ARM_SIZE_MATCHED,
     FACTORIAL_ARMS,
 )
+from mutation_ab.operators import KIND_GAUSSIAN
 from mutation_ab.records import read_generations
 
 REFERENCES = (ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED)
@@ -88,6 +89,25 @@ def load(root: Path) -> dict[str, dict[int, Run]]:
     return {arm: runs[arm] for arm in ARM_ORDER if arm in runs}
 
 
+SIGMA_FREE_ARMS = (ARM_DIFFERENCE, ARM_SIZE_MATCHED, ARM_RANDOM)
+
+
+def borrow_sigma_free_arms(runs, reference_root: Path) -> dict[str, dict[int, Run]]:
+    """Add A, C and random search from another run of the same seeds. None of them uses the Gaussian
+    step size, so a run that only varies gaussian_sd can reuse them for the full 2x2 contrasts."""
+    reference = load(reference_root)
+    seeds = sorted(next(iter(runs.values())))
+    own = next(iter(next(iter(runs.values())).values())).config
+    for arm in SIGMA_FREE_ARMS:
+        borrowed = {seed: reference[arm][seed] for seed in seeds}
+        for run in borrowed.values():
+            differing = {k for k in own if k not in ("seed", "gaussian_sd") and own[k] != run.config[k]}
+            if differing:
+                raise ValueError(f"{run.directory} differs in {sorted(differing)}")
+        runs[arm] = borrowed
+    return {arm: runs[arm] for arm in ARM_ORDER if arm in runs}
+
+
 def seed_metrics(run: Run) -> dict:
     g = run.generations
     bred = [c for c in run.children if c["kind"] not in ("init", "random")]
@@ -100,11 +120,14 @@ def seed_metrics(run: Run) -> dict:
     if run.arm == ARM_RANDOM:
         return metrics
     single = np.flatnonzero(g["unique"] == 1)
+    final = np.load(run.directory / "adults.npz")["adults"][-1]
     clones = np.array([c["change_rms"] == 0 for c in bred])
     better = np.array([c["distance"] < c["parent_distance"] for c in bred])
     metrics |= {
         "collapse_generation": int(g["generation"][single[0]]) if single.size else None,
         "unique_final": int(g["unique"][-1]),
+        "frozen_genes_final": int(np.all(final == final[0], axis=0).sum()),
+        "gaussian_step_share": float(np.mean([c["kind"] == KIND_GAUSSIAN for c in bred])),
         "clone_share": float(clones.mean()),
         "success_rate": float(better.mean()),
         "success_rate_excluding_clones": float(better[~clones].mean()) if (~clones).any() else None,
@@ -415,6 +438,8 @@ def summary_rows(per_seed: list[dict]) -> list[dict]:
             row |= {
                 "collapsed_seeds": len(collapsed),
                 "collapse_generation_range": f"{min(collapsed)}-{max(collapsed)}" if collapsed else "",
+                "frozen_genes_final_median": float(np.median([r["frozen_genes_final"] for r in mine])),
+                "gaussian_step_share_mean": float(np.mean([r["gaussian_step_share"] for r in mine])),
                 "clone_share_mean": float(np.mean([r["clone_share"] for r in mine])),
                 "success_rate_mean": float(np.mean([r["success_rate"] for r in mine])),
                 "success_rate_excluding_clones_mean": float(np.mean(excluding)) if excluding else None,
@@ -427,6 +452,7 @@ def report(summary: list[dict], stats: list[dict], plateau: list[dict], span: li
     lines = ["Final best distance to target (m), mean ± sd over seeds"]
     for r in summary:
         extra = (f"  collapsed {r['collapsed_seeds']}/{r['n']} {r['collapse_generation_range']}"
+                 f"  frozen genes {r['frozen_genes_final_median']:.0f}  Gaussian steps {r['gaussian_step_share_mean']:.1%}"
                  f"  clones {r['clone_share_mean']:.1%}  success excl. clones "
                  f"{r['success_rate_excluding_clones_mean'] or 0:.1%}") if "clone_share_mean" in r else ""
         lines.append(f"  {SHORT[r['arm']]:20s} {r['best_mean']:.3f} ± {r['best_sd']:.3f}  "
@@ -459,8 +485,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Step size x step direction analysis")
     parser.add_argument("root", type=Path)
     parser.add_argument("--out", type=Path, help="output folder (default: <root>/analysis)")
+    parser.add_argument("--sigma-free-arms-from", type=Path,
+                        help="results of the same seeds to take A, C and random search from (for sigma runs)")
     args = parser.parse_args(argv)
     runs = load(args.root)
+    if args.sigma_free_arms_from:
+        runs = borrow_sigma_free_arms(runs, args.sigma_free_arms_from)
     out = args.out or args.root / "analysis"
     out.mkdir(parents=True, exist_ok=True)
 
