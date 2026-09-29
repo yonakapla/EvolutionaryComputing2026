@@ -326,8 +326,8 @@ def _moving_average(values: np.ndarray, window: int) -> np.ndarray:
 
 def _save(fig, out: Path, name: str) -> None:
     # No timestamps, so unchanged results give byte-identical files in git.
-    fig.savefig(out / f"{name}.png", dpi=220, bbox_inches="tight", pad_inches=0.02, metadata={"Software": None})
-    fig.savefig(out / f"{name}.pdf", bbox_inches="tight", pad_inches=0.02, metadata={"CreationDate": None})
+    fig.savefig(out / f"{name}.png", dpi=220, bbox_inches="tight", pad_inches=0.05, metadata={"Software": None})
+    fig.savefig(out / f"{name}.pdf", bbox_inches="tight", pad_inches=0.05, metadata={"CreationDate": None})
     plt.close(fig)
 
 
@@ -341,7 +341,7 @@ def fig_fitness(runs, out: Path) -> None:
     if any(a in runs for a in REFERENCES):
         panels.append((references, "(b) References"))
     with plt.rc_context(FIGURE_STYLE):
-        fig, axes = plt.subplots(1, len(panels), figsize=(TEXT_WIDTH if len(panels) > 1 else COLUMN_WIDTH, 2.35),
+        fig, axes = plt.subplots(1, len(panels), figsize=(TEXT_WIDTH if len(panels) > 1 else COLUMN_WIDTH, 2.9),
                                  sharey=True, squeeze=False)
         axes = axes[0]
         for ax, (arms, text) in zip(axes, panels, strict=True):
@@ -369,7 +369,7 @@ def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
     population = _population(runs, ea_arms[0])
     floor = 1e-6
     with plt.rc_context(FIGURE_STYLE):
-        fig, axes = plt.subplots(1, 3, figsize=(TEXT_WIDTH, 2.05), gridspec_kw={"width_ratios": [1, 1, 0.9]})
+        fig, axes = plt.subplots(1, 3, figsize=(TEXT_WIDTH, 2.5), gridspec_kw={"width_ratios": [1, 1, 0.9]})
         for arm in ea_arms:
             generation = mean_curve(runs, arm, "generation")
             # Generation 0 is the initial population: no steps yet, so its difference size is NaN.
