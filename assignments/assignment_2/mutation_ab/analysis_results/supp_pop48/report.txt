@@ -1,17 +1,17 @@
 Final best distance to target (m), mean ± sd over seeds
-  A: difference        0.939 ± 0.276  min 0.580  collapsed 0/10   frozen genes 4  Gaussian steps 0.0%  clones 0.0%  success excl. clones 24.2%
-  D: Gaussian          0.200 ± 0.162  min 0.006  collapsed 0/10   frozen genes 0  Gaussian steps 100.0%  clones 0.0%  success excl. clones 19.3%
+  A difference         0.939 ± 0.276  min 0.580  collapsed 0/10   frozen genes 4  Gaussian steps 0.0%  clones 0.0%  success excl. clones 24.2%
+  D Gaussian           0.200 ± 0.162  min 0.006  collapsed 0/10   frozen genes 0  Gaussian steps 100.0%  clones 0.0%  success excl. clones 19.3%
 
 Tests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstrap CI)
 
 Plateau (PROTOCOL.md rule on the mean curve)
-  A: difference        generation 90  gain last 50 gens 0.0031 m
-  D: Gaussian          generation None  gain last 50 gens 0.0644 m
+  A difference         generation 90  gain last 50 gens 0.0031 m
+  D Gaussian           generation None  gain last 50 gens 0.0644 m
 
 Share of step length inside the population span (mean over logged generations and seeds)
-  A: difference        0.805  (isotropic 0.181, n=180)
-  D: Gaussian          0.181  (isotropic 0.181, n=180)
+  A difference         0.805  (isotropic 0.181, n=180)
+  D Gaussian           0.181  (isotropic 0.181, n=180)
 
 Realised steps (medians over non-zero logged steps)
-  A: difference        zero steps 0.0%  weights changed 48  step RMS 0.0001  per changed weight 0.000
-  D: Gaussian          zero steps 0.0%  weights changed 53  step RMS 0.0670  per changed weight 0.149
+  A difference         zero steps 0.0%  weights changed 48  step RMS 0.0001  per changed weight 0.000
+  D Gaussian           zero steps 0.0%  weights changed 53  step RMS 0.0670  per changed weight 0.149
