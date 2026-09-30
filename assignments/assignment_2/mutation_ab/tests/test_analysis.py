@@ -133,6 +133,12 @@ def test_sigma_run_borrows_sigma_free_arms(root, tmp_path):
     assert [r["family"] for r in analysis.statistical_tests(runs)].count("factorial") == 3
 
 
+def test_b_and_d_alone_still_get_the_direction_test(tmp_path):
+    long = make_fake_root(tmp_path / "long", SEEDS, ("normalised", "gaussian"), **SMALL)
+    stats = analysis.statistical_tests(analysis.load(long))
+    assert [r["test"] for r in stats] == ["fixed size: B - D"]
+
+
 def test_borrowing_refuses_a_different_setup(root, tmp_path):
     other = make_fake_root(tmp_path / "other", SEEDS, ("normalised", "gaussian"), crossover_rate=0.5, **SMALL)
     with pytest.raises(ValueError, match="differs"):
