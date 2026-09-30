@@ -36,13 +36,8 @@ from mutation_ab.records import read_generations
 REFERENCES = (ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED)
 # Order in tables and figures: shrinking-size cells, fixed-size cells, references, baseline.
 ARM_ORDER = (ARM_DIFFERENCE, ARM_SIZE_MATCHED, ARM_NORMALISED, ARM_GAUSSIAN, *REFERENCES, ARM_RANDOM)
-SHORT = {
-    ARM_DIFFERENCE: "A: difference", ARM_NORMALISED: "B: normalised", ARM_SIZE_MATCHED: "C: size-matched",
-    ARM_GAUSSIAN: "D: Gaussian", ARM_MIXTURE: "Mixture", ARM_DE: "DE (textbook)",
-    ARM_DE_MATCHED: "DE (EA's F, Cr)", ARM_RANDOM: "Random search",
-}
-# Figure names match the report's tables.
-LEGEND = {
+# Names as in the report's tables.
+NAMES = {
     ARM_DIFFERENCE: "A difference", ARM_NORMALISED: "B normalised", ARM_SIZE_MATCHED: "C size-matched",
     ARM_GAUSSIAN: "D Gaussian", ARM_MIXTURE: "Mixture", ARM_DE: "DE (0.5, 0.9)",
     ARM_DE_MATCHED: "DE matched", ARM_RANDOM: "Random search",
@@ -50,24 +45,24 @@ LEGEND = {
 # The 2x2 is encoded visually: colour = direction (population blue, random orange),
 # line style and marker fill = size (dashed/hollow shrinking, solid/filled fixed).
 POPULATION_DIRECTION, RANDOM_DIRECTION = "#1f5fbf", "#e07000"
+MUTED, LIGHT = "#555555", "#d0d0d0"
 COLORS = {
     ARM_DIFFERENCE: POPULATION_DIRECTION, ARM_NORMALISED: POPULATION_DIRECTION,
     ARM_SIZE_MATCHED: RANDOM_DIRECTION, ARM_GAUSSIAN: RANDOM_DIRECTION,
-    ARM_MIXTURE: "#b8479a", ARM_DE: "#1a8a3a", ARM_DE_MATCHED: "#7a5cc4", ARM_RANDOM: "#555555",
+    ARM_MIXTURE: "#b8479a", ARM_DE: "#1a8a3a", ARM_DE_MATCHED: "#7a5cc4", ARM_RANDOM: MUTED,
 }
 DASHED, DASH_DOT = (0, (4, 2)), (0, (5, 1.5, 1, 1.5))
 STYLES = {
     ARM_DIFFERENCE: DASHED, ARM_SIZE_MATCHED: DASHED, ARM_NORMALISED: "-", ARM_GAUSSIAN: "-",
     ARM_MIXTURE: (0, (1, 1.5)), ARM_DE: DASH_DOT, ARM_DE_MATCHED: DASH_DOT, ARM_RANDOM: "-",
 }
-SHRINKING_SIZE = (ARM_DIFFERENCE, ARM_SIZE_MATCHED)
+SHRINKING_SIZE, FIXED_SIZE = (ARM_DIFFERENCE, ARM_SIZE_MATCHED), (ARM_NORMALISED, ARM_GAUSSIAN)
 # Figures are drawn at their printed size in the GECCO sigconf layout, so fonts print at nominal size.
 TEXT_WIDTH, COLUMN_WIDTH = 7.0, 3.33
-MUTED = "#555555"
 FIGURE_STYLE = {
     "font.size": 7.5, "axes.titlesize": 8, "axes.titleweight": "bold", "axes.labelsize": 7.5,
     "xtick.labelsize": 7, "ytick.labelsize": 7, "legend.fontsize": 6.6, "axes.spines.top": False,
-    "axes.spines.right": False, "axes.edgecolor": "#666666", "axes.grid": True, "grid.color": "#e6e6e6",
+    "axes.spines.right": False, "axes.edgecolor": MUTED, "axes.grid": True, "grid.color": "#e6e6e6",
     "grid.linewidth": 0.5, "axes.axisbelow": True, "lines.linewidth": 1.4, "pdf.fonttype": 42,
 }
 BOOTSTRAP = 20_000
@@ -221,13 +216,13 @@ def statistical_tests(runs) -> list[dict]:
     if ARM_RANDOM in runs:
         random = finals(runs, ARM_RANDOM)
         family("vs random search", {
-            f"{SHORT[arm]} - random": finals(runs, arm) - random for arm in FACTORIAL_ARMS if arm in runs
+            f"{NAMES[arm]} - random": finals(runs, arm) - random for arm in FACTORIAL_ARMS if arm in runs
         }, adjust=True)
     pairs = [(ARM_MIXTURE, ARM_DIFFERENCE), (ARM_MIXTURE, ARM_RANDOM), (ARM_MIXTURE, ARM_GAUSSIAN),
              (ARM_DE, ARM_GAUSSIAN), (ARM_DE, ARM_RANDOM), (ARM_DE_MATCHED, ARM_RANDOM),
              (ARM_DE, ARM_DE_MATCHED)]
     family("references (unadjusted)", {
-        f"{SHORT[x]} - {SHORT[y]}": finals(runs, x) - finals(runs, y) for x, y in pairs if x in runs and y in runs
+        f"{NAMES[x]} - {NAMES[y]}": finals(runs, x) - finals(runs, y) for x, y in pairs if x in runs and y in runs
     }, adjust=False)
     return rows
 
@@ -316,6 +311,10 @@ def equivalent_generations(evaluations: np.ndarray, population_size: int) -> np.
     return (np.asarray(evaluations, dtype=float) - population_size) / (population_size - 1)
 
 
+def evaluations_at(generations: np.ndarray, population_size: int) -> np.ndarray:
+    return population_size + (population_size - 1) * np.asarray(generations, dtype=float)
+
+
 def _population(runs, arm: str) -> int:
     return next(iter(runs[arm].values())).config["population_size"]
 
@@ -324,14 +323,13 @@ def _title(ax, text: str) -> None:
     ax.set_title(text, loc="left", pad=4)
 
 
-def _band(ax, runs, arm: str) -> float:
-    """Mean ± sd of best-so-far over seeds; returns the last x so the caller can fit the axis."""
+def _band(ax, runs, arm: str) -> None:
+    """Mean ± sd of best-so-far over seeds."""
     values = np.array([run.generations["best_so_far"] for run in runs[arm].values()])
     x = equivalent_generations(mean_curve(runs, arm, "evaluations"), _population(runs, arm))
     mean, sd = values.mean(axis=0), values.std(axis=0, ddof=1)
     ax.fill_between(x, mean - sd, mean + sd, color=COLORS[arm], alpha=0.10, linewidth=0)
-    ax.plot(x, mean, color=COLORS[arm], linestyle=STYLES[arm], label=LEGEND[arm])
-    return float(x[-1])
+    ax.plot(x, mean, color=COLORS[arm], linestyle=STYLES[arm], label=NAMES[arm])
 
 
 def _legend_below(fig, axes, ncol: int) -> None:
@@ -340,7 +338,7 @@ def _legend_below(fig, axes, ncol: int) -> None:
     for ax in axes:
         for handle, label in zip(*ax.get_legend_handles_labels(), strict=True):
             handles.setdefault(label, handle)
-    labels = [LEGEND[arm] for arm in (*FACTORIAL_ARMS, *REFERENCES, ARM_RANDOM) if LEGEND[arm] in handles]
+    labels = [NAMES[arm] for arm in ARM_ORDER if NAMES[arm] in handles]
     fig.legend([handles[label] for label in labels], labels, loc="upper center", bbox_to_anchor=(0.5, 0.02),
                ncol=min(ncol, len(labels)), frameon=False, handlelength=2.2, handletextpad=0.5, columnspacing=1.0)
 
@@ -361,8 +359,7 @@ def fig_fitness(runs, out: Path) -> None:
     """Best-so-far distance per generation, mean ± sd over seeds; canonical DE at equal evaluations."""
     ea_arm = next(arm for arm in runs if arm not in (ARM_DE, ARM_DE_MATCHED))
     population = _population(runs, ea_arm)
-    panels = [(tuple(a for a in (ARM_DIFFERENCE, ARM_SIZE_MATCHED, ARM_NORMALISED, ARM_GAUSSIAN) if a in runs),
-               "(a) Step size × step direction")]
+    panels = [(tuple(a for a in ARM_ORDER if a in FACTORIAL_ARMS and a in runs), "(a) Step size × step direction")]
     references = tuple(a for a in (ARM_GAUSSIAN, *REFERENCES) if a in runs)
     if any(a in runs for a in REFERENCES):
         panels.append((references, "(b) References"))
@@ -371,14 +368,16 @@ def fig_fitness(runs, out: Path) -> None:
                                  sharey=True, squeeze=False)
         axes = axes[0]
         for ax, (arms, text) in zip(axes, panels, strict=True):
-            end = max(_band(ax, runs, arm) for arm in (ARM_RANDOM, *arms) if arm in runs)
-            ax.set_xlim(0, end)
+            for arm in (ARM_RANDOM, *arms):
+                if arm in runs:
+                    _band(ax, runs, arm)
+            ax.margins(x=0)
             ax.set_ylim(bottom=0)
             ax.set_xlabel("generation")
             top = ax.secondary_xaxis(
                 "top",
-                functions=(lambda g: (population + (population - 1) * g) / 1000,
-                           lambda e: (e * 1000 - population) / (population - 1)),
+                functions=(lambda g: evaluations_at(g, population) / 1000,
+                           lambda e: equivalent_generations(e * 1000, population)),
             )
             top.set_xlabel("evaluations (thousands)", color=MUTED, labelpad=2)
             top.tick_params(colors=MUTED, labelsize=6.5)
@@ -401,9 +400,9 @@ def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
             # Generation 0 is the initial population: no steps yet, so its difference size is NaN.
             size = np.array([run.generations["difference_rms"][1:] for run in runs[arm].values()])
             axes[0].plot(generation[1:], np.clip(np.nanmedian(size, axis=0), floor, None),
-                         color=COLORS[arm], linestyle=STYLES[arm], label=LEGEND[arm])
+                         color=COLORS[arm], linestyle=STYLES[arm], label=NAMES[arm])
             axes[1].plot(generation, _moving_average(mean_curve(runs, arm, "unique"), 9),
-                         color=COLORS[arm], linestyle=STYLES[arm], label=LEGEND[arm])
+                         color=COLORS[arm], linestyle=STYLES[arm], label=NAMES[arm])
         axes[0].set_yscale("log")
         axes[0].set_ylim(floor / 2, 2)
         axes[0].set_ylabel("RMS of $F(b-c)$, median")
@@ -421,13 +420,13 @@ def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
             mine = [r for r in span_rows if r["arm"] == arm]
             share = float(np.mean([r["in_span_share"] for r in mine]))
             isotropic = float(np.mean([r["isotropic_share"] for r in mine]))
-            ax.plot([isotropic, share], [y, y], color="#cccccc", linewidth=1, zorder=1)
+            ax.plot([isotropic, share], [y, y], color=LIGHT, linewidth=1, zorder=1)
             ax.scatter(isotropic, y, marker="|", s=40, color=MUTED, zorder=2)
             ax.scatter(share, y, s=22, color="white" if arm in SHRINKING_SIZE else COLORS[arm],
                        edgecolor=COLORS[arm], linewidth=1.2, zorder=3)
             ax.annotate(f"{share:.2f}", (share, y), xytext=(5, 0), textcoords="offset points", va="center",
                         fontsize=6.5)
-        ax.set_yticks(range(len(span_arms)), [LEGEND[arm] for arm in span_arms])
+        ax.set_yticks(range(len(span_arms)), [NAMES[arm] for arm in span_arms])
         ax.invert_yaxis()
         ax.set_xlim(0, 1.08)
         ax.grid(axis="y", visible=False)
@@ -440,12 +439,12 @@ def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
 
 def fig_seeds(runs, out: Path) -> None:
     """Final best distance per seed for the 2x2 and random search; grey lines join one seed."""
-    arms = [arm for arm in (ARM_DIFFERENCE, ARM_SIZE_MATCHED, ARM_NORMALISED, ARM_GAUSSIAN, ARM_RANDOM) if arm in runs]
+    arms = [arm for arm in ARM_ORDER if (arm in FACTORIAL_ARMS or arm == ARM_RANDOM) and arm in runs]
     values = np.array([finals(runs, arm) for arm in arms])
     with plt.rc_context(FIGURE_STYLE):
         fig, ax = plt.subplots(figsize=(COLUMN_WIDTH, 1.95))
         for column in values.T:
-            ax.plot(range(len(arms)), column, color="#d9d9d9", linewidth=0.7, zorder=1)
+            ax.plot(range(len(arms)), column, color=LIGHT, linewidth=0.7, zorder=1)
         for i, arm in enumerate(arms):
             ax.scatter(np.full(values.shape[1], i), values[i], s=14,
                        color="white" if arm in SHRINKING_SIZE else COLORS[arm],
@@ -453,13 +452,13 @@ def fig_seeds(runs, out: Path) -> None:
             ax.hlines(values[i].mean(), i - 0.22, i + 0.22, color="black", linewidth=1.4, zorder=4)
             ax.annotate(f"{values[i].mean():.2f}", (i + 0.25, values[i].mean()), fontsize=6.5, va="center")
         groups = {"shrinking size": [i for i, a in enumerate(arms) if a in SHRINKING_SIZE],
-                  "fixed size": [i for i, a in enumerate(arms) if a in (ARM_NORMALISED, ARM_GAUSSIAN)]}
+                  "fixed size": [i for i, a in enumerate(arms) if a in FIXED_SIZE]}
         for text, positions in groups.items():
             if positions:
                 ax.text(np.mean(positions), 0.97, text, transform=ax.get_xaxis_transform(), ha="center",
                         va="top", fontsize=6.5, color=MUTED)
-                ax.axvline(max(positions) + 0.5, color="#999999", linewidth=0.6, linestyle=":")
-        ax.set_xticks(range(len(arms)), [LEGEND[arm].split()[0] if arm != ARM_RANDOM else "Random" for arm in arms])
+                ax.axvline(max(positions) + 0.5, color=MUTED, linewidth=0.6, linestyle=":")
+        ax.set_xticks(range(len(arms)), [NAMES[arm].split()[0] if arm != ARM_RANDOM else "Random" for arm in arms])
         ax.tick_params(axis="x", length=0)
         ax.grid(axis="x", visible=False)
         ax.set_xlim(-0.4, len(arms) - 0.3)
@@ -484,7 +483,7 @@ def summary_rows(per_seed: list[dict]) -> list[dict]:
         if not mine:
             continue
         best = np.array([r["best_final"] for r in mine])
-        row = {"arm": arm, "label": SHORT[arm], "n": len(mine), "best_mean": float(best.mean()),
+        row = {"arm": arm, "label": NAMES[arm], "n": len(mine), "best_mean": float(best.mean()),
                "best_sd": float(best.std(ddof=1)), "best_median": float(np.median(best)),
                "best_min": float(best.min()), "best_max": float(best.max()),
                "evaluations": mine[0]["evaluations"]}
@@ -513,7 +512,7 @@ def report(summary: list[dict], stats: list[dict], plateau: list[dict], span: li
                  f"  Gaussian steps {r['gaussian_step_share_mean']:.1%}"
                  f"  clones {r['clone_share_mean']:.1%}  success excl. clones "
                  f"{r['success_rate_excluding_clones_mean'] or 0:.1%}") if "clone_share_mean" in r else ""
-        lines.append(f"  {SHORT[r['arm']]:20s} {r['best_mean']:.3f} ± {r['best_sd']:.3f}  "
+        lines.append(f"  {NAMES[r['arm']]:20s} {r['best_mean']:.3f} ± {r['best_sd']:.3f}  "
                      f"min {r['best_min']:.3f}{extra}")
     lines.append("\nTests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstrap CI)")
     for r in stats:
@@ -522,18 +521,18 @@ def report(summary: list[dict], stats: list[dict], plateau: list[dict], span: li
                      f"  positive {r['positive']}/{r['n']}  p={r['p']:.4f}{holm_text}")
     lines.append("\nPlateau (PROTOCOL.md rule on the mean curve)")
     for r in plateau:
-        lines.append(f"  {SHORT[r['arm']]:20s} generation {r['plateau_generation']}  "
+        lines.append(f"  {NAMES[r['arm']]:20s} generation {r['plateau_generation']}  "
                      f"gain last 50 gens {r['gain_last_50_generations']:.4f} m")
     if span:
         lines.append("\nShare of step length inside the population span (mean over logged generations and seeds)")
         for arm in dict.fromkeys(r["arm"] for r in span):
             mine = [r for r in span if r["arm"] == arm]
-            lines.append(f"  {SHORT[arm]:20s} {np.mean([r['in_span_share'] for r in mine]):.3f}  "
+            lines.append(f"  {NAMES[arm]:20s} {np.mean([r['in_span_share'] for r in mine]):.3f}  "
                          f"(isotropic {np.mean([r['isotropic_share'] for r in mine]):.3f}, n={len(mine)})")
     if shape:
         lines.append("\nRealised steps (medians over non-zero logged steps)")
         for r in shape:
-            lines.append(f"  {SHORT[r['arm']]:20s} zero steps {r['zero_step_share']:.1%}  "
+            lines.append(f"  {NAMES[r['arm']]:20s} zero steps {r['zero_step_share']:.1%}  "
                          f"weights changed {r['weights_changed_median']:.0f}  step RMS {r['step_rms_median']:.4f}  "
                          f"per changed weight {r['change_per_changed_weight_median']:.3f}")
     return "\n".join(lines)

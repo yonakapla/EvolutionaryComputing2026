@@ -1,8 +1,8 @@
 Final best distance to target (m), mean ± sd over seeds
-  A: difference        1.390 ± 0.171  min 1.199  collapsed 5/5 28-63  frozen genes 260  Gaussian steps 0.0%  clones 95.7%  success excl. clones 19.7%
-  C: size-matched      1.534 ± 0.057  min 1.485  collapsed 5/5 99-152  frozen genes 260  Gaussian steps 0.0%  clones 85.4%  success excl. clones 18.7%
-  B: normalised        0.635 ± 0.199  min 0.486  collapsed 0/5   frozen genes 205  Gaussian steps 3.4%  clones 21.0%  success excl. clones 11.6%
-  D: Gaussian          0.651 ± 0.401  min 0.055  collapsed 0/5   frozen genes 1  Gaussian steps 100.0%  clones 0.0%  success excl. clones 13.7%
+  A difference         1.390 ± 0.171  min 1.199  collapsed 5/5 28-63  frozen genes 260  Gaussian steps 0.0%  clones 95.7%  success excl. clones 19.7%
+  C size-matched       1.534 ± 0.057  min 1.485  collapsed 5/5 99-152  frozen genes 260  Gaussian steps 0.0%  clones 85.4%  success excl. clones 18.7%
+  B normalised         0.635 ± 0.199  min 0.486  collapsed 0/5   frozen genes 205  Gaussian steps 3.4%  clones 21.0%  success excl. clones 11.6%
+  D Gaussian           0.651 ± 0.401  min 0.055  collapsed 0/5   frozen genes 1  Gaussian steps 100.0%  clones 0.0%  success excl. clones 13.7%
   Random search        1.226 ± 0.128  min 1.029
 
 Tests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstrap CI)
@@ -11,26 +11,26 @@ Tests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstra
   [factorial] interaction: (A-C) - (B-D): -0.128 m [-0.564, +0.329]  positive 1/5  p=0.4375  Holm p=0.8750
   [direction within size] shrinking size: A - C: -0.144 m [-0.312, +0.015]  positive 1/5  p=0.3125  Holm p=0.6250
   [direction within size] fixed size: B - D: -0.016 m [-0.368, +0.336]  positive 2/5  p=1.0000  Holm p=1.0000
-  [vs random search] A: difference - random: +0.164 m [+0.028, +0.303]  positive 4/5  p=0.1875  Holm p=0.2500
-  [vs random search] B: normalised - random: -0.591 m [-0.797, -0.304]  positive 0/5  p=0.0625  Holm p=0.2500
-  [vs random search] C: size-matched - random: +0.308 m [+0.182, +0.453]  positive 5/5  p=0.0625  Holm p=0.2500
-  [vs random search] D: Gaussian - random: -0.575 m [-0.953, -0.269]  positive 0/5  p=0.0625  Holm p=0.2500
+  [vs random search] A difference - random: +0.164 m [+0.028, +0.303]  positive 4/5  p=0.1875  Holm p=0.2500
+  [vs random search] B normalised - random: -0.591 m [-0.797, -0.304]  positive 0/5  p=0.0625  Holm p=0.2500
+  [vs random search] C size-matched - random: +0.308 m [+0.182, +0.453]  positive 5/5  p=0.0625  Holm p=0.2500
+  [vs random search] D Gaussian - random: -0.575 m [-0.953, -0.269]  positive 0/5  p=0.0625  Holm p=0.2500
 
 Plateau (PROTOCOL.md rule on the mean curve)
-  A: difference        generation 40  gain last 50 gens 0.0000 m
-  C: size-matched      generation 60  gain last 50 gens 0.0000 m
-  B: normalised        generation 230  gain last 50 gens 0.0000 m
-  D: Gaussian          generation 80  gain last 50 gens 0.0000 m
+  A difference         generation 40  gain last 50 gens 0.0000 m
+  C size-matched       generation 60  gain last 50 gens 0.0000 m
+  B normalised         generation 230  gain last 50 gens 0.0000 m
+  D Gaussian           generation 80  gain last 50 gens 0.0000 m
   Random search        generation 100  gain last 50 gens 0.0000 m
 
 Share of step length inside the population span (mean over logged generations and seeds)
-  A: difference        0.574  (isotropic 0.040, n=16)
-  C: size-matched      0.039  (isotropic 0.038, n=33)
-  B: normalised        0.607  (isotropic 0.036, n=400)
-  D: Gaussian          0.042  (isotropic 0.042, n=400)
+  A difference         0.574  (isotropic 0.040, n=16)
+  C size-matched       0.039  (isotropic 0.038, n=33)
+  B normalised         0.607  (isotropic 0.036, n=400)
+  D Gaussian           0.042  (isotropic 0.042, n=400)
 
 Realised steps (medians over non-zero logged steps)
-  A: difference        zero steps 96.4%  weights changed 5  step RMS 0.0000  per changed weight 0.000
-  C: size-matched      zero steps 86.0%  weights changed 51  step RMS 0.0000  per changed weight 0.000
-  B: normalised        zero steps 20.7%  weights changed 3  step RMS 0.1130  per changed weight 0.776
-  D: Gaussian          zero steps 0.0%  weights changed 53  step RMS 0.1344  per changed weight 0.298
+  A difference         zero steps 96.4%  weights changed 5  step RMS 0.0000  per changed weight 0.000
+  C size-matched       zero steps 86.0%  weights changed 51  step RMS 0.0000  per changed weight 0.000
+  B normalised         zero steps 20.7%  weights changed 3  step RMS 0.1130  per changed weight 0.776
+  D Gaussian           zero steps 0.0%  weights changed 53  step RMS 0.1344  per changed weight 0.298

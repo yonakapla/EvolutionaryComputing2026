@@ -1,23 +1,23 @@
 Final best distance to target (m), mean ± sd over seeds
-  B: normalised        0.379 ± 0.372  min 0.000  collapsed 0/10   frozen genes 214  Gaussian steps 3.6%  clones 22.3%  success excl. clones 11.2%
-  D: Gaussian          0.498 ± 0.334  min 0.152  collapsed 0/10   frozen genes 2  Gaussian steps 100.0%  clones 0.0%  success excl. clones 13.5%
-  DE (textbook)        0.295 ± 0.263  min 0.001  collapsed 0/10   frozen genes 0  Gaussian steps 0.0%  clones 0.0%  success excl. clones 1.7%
+  B normalised         0.379 ± 0.372  min 0.000  collapsed 0/10   frozen genes 214  Gaussian steps 3.6%  clones 22.3%  success excl. clones 11.2%
+  D Gaussian           0.498 ± 0.334  min 0.152  collapsed 0/10   frozen genes 2  Gaussian steps 100.0%  clones 0.0%  success excl. clones 13.5%
+  DE (0.5, 0.9)        0.295 ± 0.263  min 0.001  collapsed 0/10   frozen genes 0  Gaussian steps 0.0%  clones 0.0%  success excl. clones 1.7%
 
 Tests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstrap CI)
   [direction within size] fixed size: B - D: -0.119 m [-0.388, +0.121]  positive 6/10  p=0.7695  Holm p=0.7695
-  [references (unadjusted)] DE (textbook) - D: Gaussian: -0.203 m [-0.382, -0.006]  positive 3/10  p=0.1055
+  [references (unadjusted)] DE (0.5, 0.9) - D Gaussian: -0.203 m [-0.382, -0.006]  positive 3/10  p=0.1055
 
 Plateau (PROTOCOL.md rule on the mean curve)
-  B: normalised        generation 350  gain last 50 gens 0.0033 m
-  D: Gaussian          generation 140  gain last 50 gens 0.0000 m
-  DE (textbook)        generation 360  gain last 50 gens 0.0004 m
+  B normalised         generation 350  gain last 50 gens 0.0033 m
+  D Gaussian           generation 140  gain last 50 gens 0.0000 m
+  DE (0.5, 0.9)        generation 360  gain last 50 gens 0.0004 m
 
 Share of step length inside the population span (mean over logged generations and seeds)
-  B: normalised        0.606  (isotropic 0.035, n=1600)
-  D: Gaussian          0.042  (isotropic 0.042, n=1600)
-  DE (textbook)        0.934  (isotropic 0.042, n=1460)
+  B normalised         0.606  (isotropic 0.035, n=1600)
+  D Gaussian           0.042  (isotropic 0.042, n=1600)
+  DE (0.5, 0.9)        0.934  (isotropic 0.042, n=1460)
 
 Realised steps (medians over non-zero logged steps)
-  B: normalised        zero steps 22.6%  weights changed 3  step RMS 0.0569  per changed weight 0.403
-  D: Gaussian          zero steps 0.0%  weights changed 53  step RMS 0.0671  per changed weight 0.149
-  DE (textbook)        zero steps 0.0%  weights changed 234  step RMS 0.3569  per changed weight 0.377
+  B normalised         zero steps 22.6%  weights changed 3  step RMS 0.0569  per changed weight 0.403
+  D Gaussian           zero steps 0.0%  weights changed 53  step RMS 0.0671  per changed weight 0.149
+  DE (0.5, 0.9)        zero steps 0.0%  weights changed 234  step RMS 0.3569  per changed weight 0.377
