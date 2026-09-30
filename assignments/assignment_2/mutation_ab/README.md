@@ -46,6 +46,7 @@ uv run python -m mutation_ab.analysis mutation_ab/results/final_spider --out mut
 uv run python -m mutation_ab.analysis mutation_ab/results/supp_pop48 --out mutation_ab/analysis_results/supp_pop48
 uv run python -m mutation_ab.analysis mutation_ab/results/supp_sigma_0.05 --out mutation_ab/analysis_results/supp_sigma_0.05 \
   --sigma-free-arms-from mutation_ab/results/final_spider
+uv run python -m mutation_ab.analysis mutation_ab/results/supp_long --out mutation_ab/analysis_results/supp_long
 ```
 
 The outputs have no timestamps, so git shows a change only when a result changes. The σ runs only
@@ -59,7 +60,11 @@ uv run python -m mutation_ab.run --out mutation_ab/results/supp_pop48 --seeds 10
   --population 48 --generations 186 --workers 10
 uv run python -m mutation_ab.run --out mutation_ab/results/supp_sigma_0.05 --seeds 1000-1004 --arms normalised,gaussian \
   --gaussian-sd 0.05 --workers 5
+uv run python -m mutation_ab.run --out mutation_ab/results/supp_long --seeds 1000-1009 \
+  --arms normalised,gaussian,de_rand_1_bin --generations 1600 --workers 10
 ```
+
+The first 800 generations of `supp_long` are identical to `final_spider`, since both use the same seeds.
 
 ## Replay
 
