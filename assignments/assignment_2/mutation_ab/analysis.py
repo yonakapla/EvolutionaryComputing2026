@@ -214,6 +214,10 @@ def statistical_tests(runs) -> list[dict]:
             "shrinking size: A - C": a - c,
             "fixed size: B - D": b - d,
         }, adjust=True)
+    elif ARM_NORMALISED in runs and ARM_GAUSSIAN in runs:
+        family("direction within size", {
+            "fixed size: B - D": finals(runs, ARM_NORMALISED) - finals(runs, ARM_GAUSSIAN),
+        }, adjust=True)
     if ARM_RANDOM in runs:
         random = finals(runs, ARM_RANDOM)
         family("vs random search", {
