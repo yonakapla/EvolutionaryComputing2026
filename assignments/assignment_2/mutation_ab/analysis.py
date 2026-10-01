@@ -389,7 +389,7 @@ def fig_fitness(runs, out: Path) -> None:
 
 
 def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
-    """(a) population difference size, (b) distinct genotypes, (c) share of step length inside the population span."""
+    """(a) population difference size, (b) distinct genotypes, (c) share of step length in the population subspace."""
     ea_arms = [arm for arm in (*FACTORIAL_ARMS, ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED) if arm in runs]
     population = _population(runs, ea_arms[0])
     floor = 1e-6
@@ -407,7 +407,7 @@ def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
         axes[0].set_ylim(floor / 2, 2)
         axes[0].set_ylabel("RMS of $F(b-c)$, median")
         axes[0].set_xlabel("generation")
-        _title(axes[0], "(a) Difference-step size")
+        _title(axes[0], "(a) Donor difference")
         axes[1].set_ylim(0, population + 0.8)
         axes[1].yaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
         axes[1].set_ylabel(f"distinct genotypes (of {population})")
@@ -430,7 +430,7 @@ def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
         ax.invert_yaxis()
         ax.set_xlim(0, 1.08)
         ax.grid(axis="y", visible=False)
-        ax.set_xlabel("share inside population span")
+        ax.set_xlabel("share in population subspace")
         _title(ax, "(c) Step direction")
         fig.tight_layout(w_pad=1.2)
         _legend_below(fig, axes[:2], ncol=7)
