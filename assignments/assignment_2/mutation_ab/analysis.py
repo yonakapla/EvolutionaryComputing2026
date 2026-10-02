@@ -36,6 +36,8 @@ from mutation_ab.records import read_generations
 REFERENCES = (ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED)
 # Order in tables and figures: shrinking-size cells, fixed-size cells, references, baseline.
 ARM_ORDER = (ARM_DIFFERENCE, ARM_SIZE_MATCHED, ARM_NORMALISED, ARM_GAUSSIAN, *REFERENCES, ARM_RANDOM)
+# The report discusses only canonical DE among the references; the tables keep all of them.
+FIGURE_ARMS = tuple(arm for arm in ARM_ORDER if arm not in (ARM_MIXTURE, ARM_DE_MATCHED))
 # Names as in the report's tables.
 NAMES = {
     ARM_DIFFERENCE: "A difference", ARM_NORMALISED: "B normalised", ARM_SIZE_MATCHED: "C size-matched",
@@ -357,45 +359,36 @@ def _save(fig, out: Path, name: str) -> None:
 
 def fig_fitness(runs, out: Path) -> None:
     """Best-so-far distance per generation, mean ± sd over seeds; canonical DE at equal evaluations."""
-    ea_arm = next(arm for arm in runs if arm not in (ARM_DE, ARM_DE_MATCHED))
-    population = _population(runs, ea_arm)
-    panels = [(tuple(a for a in ARM_ORDER if a in FACTORIAL_ARMS and a in runs), "(a) Step size × step direction")]
-    references = tuple(a for a in (ARM_GAUSSIAN, *REFERENCES) if a in runs)
-    if any(a in runs for a in REFERENCES):
-        panels.append((references, "(b) References"))
+    arms = [arm for arm in FIGURE_ARMS if arm in runs]
+    population = _population(runs, next(arm for arm in arms if arm != ARM_DE))
     with plt.rc_context(FIGURE_STYLE):
-        fig, axes = plt.subplots(1, len(panels), figsize=(TEXT_WIDTH if len(panels) > 1 else COLUMN_WIDTH, 2.9),
-                                 sharey=True, squeeze=False)
-        axes = axes[0]
-        for ax, (arms, text) in zip(axes, panels, strict=True):
-            for arm in (ARM_RANDOM, *arms):
-                if arm in runs:
-                    _band(ax, runs, arm)
-            ax.margins(x=0)
-            ax.set_ylim(bottom=0)
-            ax.set_xlabel("generation")
-            top = ax.secondary_xaxis(
-                "top",
-                functions=(lambda g: evaluations_at(g, population) / 1000,
-                           lambda e: equivalent_generations(e * 1000, population)),
-            )
-            top.set_xlabel("evaluations (thousands)", color=MUTED, labelpad=2)
-            top.tick_params(colors=MUTED, labelsize=6.5)
-            _title(ax, text)
-        axes[0].set_ylabel("best distance to target (m)")
-        fig.tight_layout(w_pad=1.5)
-        _legend_below(fig, axes, ncol=8)
+        fig, ax = plt.subplots(figsize=(COLUMN_WIDTH, 2.6))
+        for arm in arms:
+            _band(ax, runs, arm)
+        ax.margins(x=0)
+        ax.set_ylim(bottom=0)
+        ax.set_xlabel("generation")
+        ax.set_ylabel("best distance to target (m)")
+        top = ax.secondary_xaxis(
+            "top",
+            functions=(lambda g: evaluations_at(g, population) / 1000,
+                       lambda e: equivalent_generations(e * 1000, population)),
+        )
+        top.set_xlabel("evaluations (thousands)", color=MUTED, labelpad=2)
+        top.tick_params(colors=MUTED, labelsize=6.5)
+        fig.tight_layout()
+        _legend_below(fig, [ax], ncol=3)
         _save(fig, out, "fig_fitness")
 
 
-def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
-    """(a) population difference size, (b) distinct genotypes, (c) share of step length inside the population span."""
-    ea_arms = [arm for arm in (*FACTORIAL_ARMS, ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED) if arm in runs]
-    population = _population(runs, ea_arms[0])
+def fig_mechanism(runs, out: Path) -> None:
+    """(a) size of the donor difference, (b) distinct genotypes; canonical DE in its own generations."""
+    arms = [arm for arm in FIGURE_ARMS if arm in runs and arm != ARM_RANDOM]
+    population = _population(runs, arms[0])
     floor = 1e-6
     with plt.rc_context(FIGURE_STYLE):
-        fig, axes = plt.subplots(1, 3, figsize=(TEXT_WIDTH, 2.5), gridspec_kw={"width_ratios": [1, 1, 0.9]})
-        for arm in ea_arms:
+        fig, axes = plt.subplots(1, 2, figsize=(TEXT_WIDTH, 2.1))
+        for arm in arms:
             generation = mean_curve(runs, arm, "generation")
             # Generation 0 is the initial population: no steps yet, so its difference size is NaN.
             size = np.array([run.generations["difference_rms"][1:] for run in runs[arm].values()])
@@ -406,34 +399,15 @@ def fig_mechanism(runs, span_rows: list[dict], out: Path) -> None:
         axes[0].set_yscale("log")
         axes[0].set_ylim(floor / 2, 2)
         axes[0].set_ylabel("RMS of $F(b-c)$, median")
-        axes[0].set_xlabel("generation")
-        _title(axes[0], "(a) Difference-step size")
+        _title(axes[0], "(a) Step size")
         axes[1].set_ylim(0, population + 0.8)
         axes[1].yaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
         axes[1].set_ylabel(f"distinct genotypes (of {population})")
-        axes[1].set_xlabel("generation")
         _title(axes[1], "(b) Collapse")
-
-        ax = axes[2]
-        span_arms = [arm for arm in ea_arms if any(r["arm"] == arm for r in span_rows)]
-        for y, arm in enumerate(span_arms):
-            mine = [r for r in span_rows if r["arm"] == arm]
-            share = float(np.mean([r["in_span_share"] for r in mine]))
-            isotropic = float(np.mean([r["isotropic_share"] for r in mine]))
-            ax.plot([isotropic, share], [y, y], color=LIGHT, linewidth=1, zorder=1)
-            ax.scatter(isotropic, y, marker="|", s=40, color=MUTED, zorder=2)
-            ax.scatter(share, y, s=22, color="white" if arm in SHRINKING_SIZE else COLORS[arm],
-                       edgecolor=COLORS[arm], linewidth=1.2, zorder=3)
-            ax.annotate(f"{share:.2f}", (share, y), xytext=(5, 0), textcoords="offset points", va="center",
-                        fontsize=6.5)
-        ax.set_yticks(range(len(span_arms)), [NAMES[arm] for arm in span_arms])
-        ax.invert_yaxis()
-        ax.set_xlim(0, 1.08)
-        ax.grid(axis="y", visible=False)
-        ax.set_xlabel("share inside population span")
-        _title(ax, "(c) Step direction")
-        fig.tight_layout(w_pad=1.2)
-        _legend_below(fig, axes[:2], ncol=7)
+        for ax in axes:
+            ax.set_xlabel("generation")
+        fig.tight_layout(w_pad=2.0)
+        _legend_below(fig, axes, ncol=5)
         _save(fig, out, "fig_mechanism")
 
 
@@ -562,7 +536,7 @@ def main(argv: list[str] | None = None) -> int:
         write_csv(out / f"{name}.csv", rows)
 
     fig_fitness(runs, out)
-    fig_mechanism(runs, span, out)
+    fig_mechanism(runs, out)
     fig_seeds(runs, out)
     text = report(summary, stats, plateau, span, shape)
     (out / "report.txt").write_text(text + "\n")
