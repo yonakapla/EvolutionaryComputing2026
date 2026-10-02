@@ -387,7 +387,7 @@ def fig_mechanism(runs, out: Path) -> None:
     population = _population(runs, arms[0])
     floor = 1e-6
     with plt.rc_context(FIGURE_STYLE):
-        fig, axes = plt.subplots(1, 2, figsize=(COLUMN_WIDTH, 1.9))
+        fig, axes = plt.subplots(1, 2, figsize=(TEXT_WIDTH, 2.1))
         for arm in arms:
             generation = mean_curve(runs, arm, "generation")
             # Generation 0 is the initial population: no steps yet, so its difference size is NaN.
@@ -406,8 +406,8 @@ def fig_mechanism(runs, out: Path) -> None:
         _title(axes[1], "(b) Collapse")
         for ax in axes:
             ax.set_xlabel("generation")
-        fig.tight_layout(w_pad=1.0)
-        _legend_below(fig, axes, ncol=3)
+        fig.tight_layout(w_pad=2.0)
+        _legend_below(fig, axes, ncol=5)
         _save(fig, out, "fig_mechanism")
 
 
