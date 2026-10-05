@@ -12,22 +12,14 @@ def row(generation):
     return {field: 0 for field in GENERATION_FIELDS} | {"generation": generation}
 
 
-def test_reports_progress_every_ten_generations_and_on_finish(tmp_path, capsys):
+def test_reports_one_line_when_a_run_finishes(tmp_path, capsys):
     recorder = RunRecorder(
         tmp_path / "run", RunConfig(seed=7, generations=20), "mixture", FAKE_HASHES
     )
     for generation in range(21):
-        recorder.generation(
-            row(generation) | {"best_so_far": 1.5, "evaluations": 12 + 11 * generation}
-        )
-    recorder.complete({"evaluations": 232})
-    lines = capsys.readouterr().out.splitlines()
-    generations = [
-        line.split(" gen ")[1].split()[0] for line in lines if " gen " in line
-    ]
-    assert generations == ["0/20", "10/20", "20/20"]
-    assert all(line.startswith("[seed 7 mixture]") for line in lines)
-    assert "done" in lines[-1]
+        recorder.generation(row(generation))
+    recorder.complete({"evaluations": 232, "best_so_far": 1.5})
+    assert capsys.readouterr().out.startswith("mixture seed 7: best 1.500 m")
 
 
 def test_reports_failure(tmp_path, capsys):
@@ -56,7 +48,8 @@ def test_complete_run_writes_all_artifacts(tmp_path):
     recorder.generation(row(0))
     recorder.adults(np.zeros((4, 222)))
     recorder.adults(np.ones((4, 222)))
-    recorder.complete({"evaluations": 2})
+    summary = {"evaluations": 2, "best_so_far": 1.0}
+    recorder.complete(summary)
 
     run = tmp_path / "run"
     config = json.loads((run / "config.json").read_text())
@@ -70,7 +63,7 @@ def test_complete_run_writes_all_artifacts(tmp_path):
         GENERATION_FIELDS
     )
     assert np.load(run / "adults.npz")["adults"].shape == (2, 4, 222)
-    assert json.loads((run / "COMPLETE").read_text()) == {"evaluations": 2}
+    assert json.loads((run / "COMPLETE").read_text()) == summary
 
 
 def test_failed_run_has_no_complete_marker(tmp_path):

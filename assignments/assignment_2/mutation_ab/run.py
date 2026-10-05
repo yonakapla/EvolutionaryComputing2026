@@ -1,8 +1,6 @@
 import argparse
-import json
 import multiprocessing
 import sys
-import time
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from itertools import repeat
@@ -66,8 +64,12 @@ def run_one(
 
 def run_seed(
     seed: int, out_root: Path, overrides: dict, arms: tuple[str, ...] = ALL_ARMS
-) -> dict:
-    started = time.perf_counter()
+) -> dict[str, str]:
+    """Run every arm of one seed from the same initial population.
+
+    Returns each arm's status, "complete" or "failed". A diverged simulation
+    fails only its own arm, unless it happens in the shared initial population.
+    """
     cfg = RunConfig(seed=seed, **overrides)
     set_seed(seed)
     model, hashes = build_model(cfg)
@@ -75,21 +77,16 @@ def run_seed(
     length = genome_length(n_inputs(model), cfg.hidden_size, model.nu)
     seed_dir = out_root / f"seed_{seed}"
     status: dict[str, str] = {}
-    print(
-        f"[seed {seed}] started: evaluating the shared initial population", flush=True
-    )
     try:
         initial = make_initial(cfg, make_streams(seed), evaluator, length)
     except UnstableSimulation as error:
         for arm in arms:
             RunRecorder(seed_dir / arm, cfg, arm, hashes).fail(error)
             status[arm] = "failed"
-        return {"seed": seed, "status": status, "wall_s": time.perf_counter() - started}
+        return status
 
     for arm in arms:
-        recorder = RunRecorder(
-            seed_dir / arm, cfg, arm, hashes, cfg.generations_for(arm)
-        )
+        recorder = RunRecorder(seed_dir / arm, cfg, arm, hashes)
         try:
             summary = run_one(cfg, arm, initial, evaluator, recorder)
         except UnstableSimulation as error:
@@ -98,7 +95,7 @@ def run_seed(
             continue
         recorder.complete(summary)
         status[arm] = "complete"
-    return {"seed": seed, "status": status, "wall_s": time.perf_counter() - started}
+    return status
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -125,7 +122,8 @@ def main(argv: list[str] | None = None) -> int:
         "--gaussian-sd",
         type=float,
         default=RunConfig(seed=0).gaussian_sd,
-        help="Gaussian step SD, also the normalised arm's fixed step size (F stays tied to 0.15)",
+        help="Gaussian step SD, also the normalised arm's fixed step size "
+        "(F stays tied to 0.15)",
     )
     parser.add_argument(
         "--heartbeat",
@@ -152,18 +150,10 @@ def main(argv: list[str] | None = None) -> int:
     }
     reference = RunConfig(seed=0, **overrides)
     budgets = {arm: reference.budget_for(arm) for arm in arms}
-    de_note = (
-        f" ({reference.budget_for(DE_ARMS[0])} for canonical DE)"
-        if any(arm in DE_ARMS for arm in arms)
-        else ""
-    )
     args.out.mkdir(parents=True, exist_ok=True)
     print(
-        f"Running seeds {seeds[0]}..{seeds[-1]} ({len(seeds)} seeds) x arms {', '.join(arms)}; "
-        f"{args.generations} generations, {reference.budget} evaluations per arm{de_note}, "
-        f"{args.workers} worker(s); "
-        f"output in {args.out}. Overall progress every {args.heartbeat:g}s; "
-        f"per-run progress every 10 generations.",
+        f"{len(seeds)} seeds x {len(arms)} arms, {reference.budget} evaluations "
+        f"per run, {args.workers} worker(s) -> {args.out}",
         flush=True,
     )
 
@@ -185,11 +175,16 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 )
 
-    print(json.dumps(results, indent=2))
-    complete = all(
-        state == "complete" for r in results for state in r["status"].values()
-    )
-    return 0 if complete else 1
+    failed = [
+        f"{arm} seed {seed}"
+        for seed, status in zip(seeds, results, strict=True)
+        for arm, state in status.items()
+        if state != "complete"
+    ]
+    print(f"{len(seeds) * len(arms) - len(failed)} runs complete, {len(failed)} failed")
+    for run in failed:
+        print(f"  failed: {run}")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

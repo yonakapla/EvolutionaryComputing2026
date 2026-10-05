@@ -1,3 +1,5 @@
+"""The overall progress line that run.py prints during long experiments."""
+
 import threading
 import time
 from datetime import datetime, timedelta
@@ -22,22 +24,21 @@ def progress_line(
     evals: int, total: int, finished: int, runs: int, elapsed_s: float, now: datetime
 ) -> str:
     percent = 100 * evals / total if total else 0.0
+    eta = "--:--"
     if evals and elapsed_s > 0:
-        seconds_per_eval = elapsed_s / evals
-        rate = f"{seconds_per_eval * 10_000:.0f} s/10k evals"
-        eta = (now + timedelta(seconds=seconds_per_eval * (total - evals))).strftime(
-            "%H:%M"
-        )
-    else:
-        rate, eta = "-- s/10k evals", "--:--"
+        remaining = elapsed_s / evals * (total - evals)
+        eta = f"{now + timedelta(seconds=remaining):%H:%M}"
     return (
-        f"{now:%H:%M:%S}  overall {percent:.0f}% ({evals:,}/{total:,} evals) · {rate} · "
-        f"runs done {finished}/{runs} · ETA {eta}"
+        f"{now:%H:%M:%S}  {percent:.0f}% of {total:,} evaluations, "
+        f"{finished}/{runs} runs done, ETA {eta}"
     )
 
 
 class Heartbeat:
-    """Prints overall progress, read from the run directories, while seeds run in worker processes."""
+    """Prints overall progress while the seeds run in worker processes.
+
+    Progress is read from the run directories, so the workers need not report it.
+    """
 
     def __init__(
         self, out: Path, seeds, arms, budgets: dict[str, int], interval_s: float

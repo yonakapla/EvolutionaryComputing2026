@@ -84,7 +84,6 @@ class RunRecorder:
         cfg: RunConfig,
         arm: str,
         hashes: dict[str, str],
-        total_generations: int | None = None,
     ) -> None:
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=False)
@@ -111,13 +110,8 @@ class RunRecorder:
         self._generations.writeheader()
         self._adults: list[np.ndarray] = []
         self._steps: list[tuple[int, str, np.ndarray]] = []
-        self._label = f"[seed {cfg.seed} {arm}]"
-        self._total_generations = total_generations or cfg.generations
+        self._label = f"{arm} seed {cfg.seed}"
         self._started = time.perf_counter()
-
-    def _report(self, message: str) -> None:
-        elapsed = time.perf_counter() - self._started
-        print(f"{self._label} {message} ({elapsed:.0f}s)", flush=True)
 
     def child(self, record: dict) -> None:
         self._children.write(json.dumps(record) + "\n")
@@ -126,12 +120,6 @@ class RunRecorder:
     def generation(self, row: dict) -> None:
         self._generations.writerow(row)
         self._generations_file.flush()
-        generation = int(row["generation"])
-        if generation % 10 == 0 or generation == self._total_generations:
-            self._report(
-                f"gen {generation}/{self._total_generations}"
-                f"  best {float(row['best_so_far']):.3f} m  evals {row['evaluations']}"
-            )
 
     def adults(self, genomes: np.ndarray) -> None:
         self._adults.append(np.array(genomes, dtype=np.float64))
@@ -154,7 +142,11 @@ class RunRecorder:
                 delta=np.stack(delta),
             )
         (self.directory / "COMPLETE").write_text(json.dumps(summary))
-        self._report("done")
+        seconds = time.perf_counter() - self._started
+        print(
+            f"{self._label}: best {summary['best_so_far']:.3f} m ({seconds:.0f}s)",
+            flush=True,
+        )
 
     def fail(self, error: BaseException) -> None:
         self._close()
@@ -168,7 +160,9 @@ class RunRecorder:
             report["genome"] = genome_list
             report["genome_sha1"] = genome_sha1(genome_list)
         (self.directory / "FAILED.json").write_text(json.dumps(report, indent=2))
-        self._report(f"FAILED: {error!r}; details in {self.directory / 'FAILED.json'}")
+        print(
+            f"{self._label}: FAILED, see {self.directory / 'FAILED.json'}", flush=True
+        )
 
     def _close(self) -> None:
         self._children.close()

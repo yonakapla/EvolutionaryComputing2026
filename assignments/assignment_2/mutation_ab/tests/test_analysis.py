@@ -158,9 +158,7 @@ def test_sigma_run_borrows_sigma_free_arms(root, tmp_path):
         "gaussian",
         "random",
     }
-    assert [r["family"] for r in stats.statistical_tests(runs)].count(
-        "factorial"
-    ) == 3
+    assert [r["family"] for r in stats.statistical_tests(runs)].count("factorial") == 3
 
 
 def test_b_and_d_alone_still_get_the_direction_test(tmp_path):

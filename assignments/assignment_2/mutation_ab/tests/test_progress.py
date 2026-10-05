@@ -33,9 +33,7 @@ def test_progress_line_reports_percent_rate_runs_and_eta():
         elapsed_s=1_917.3,
         now=datetime(2026, 9, 28, 15, 5, 55),
     )
-    assert line == (
-        "15:05:55  overall 64% (63,910/99,360 evals) · 300 s/10k evals · runs done 10/30 · ETA 15:23"
-    )
+    assert line == "15:05:55  64% of 99,360 evaluations, 10/30 runs done, ETA 15:23"
 
 
 def test_progress_line_before_any_evaluation():
@@ -47,10 +45,7 @@ def test_progress_line_before_any_evaluation():
         elapsed_s=5.0,
         now=datetime(2026, 9, 28, 15, 0, 0),
     )
-    assert (
-        line
-        == "15:00:00  overall 0% (0/100 evals) · -- s/10k evals · runs done 0/3 · ETA --:--"
-    )
+    assert line == "15:00:00  0% of 100 evaluations, 0/3 runs done, ETA --:--"
 
 
 def test_heartbeat_prints_a_final_line_on_exit(tmp_path, capsys):
@@ -58,8 +53,7 @@ def test_heartbeat_prints_a_final_line_on_exit(tmp_path, capsys):
     with Heartbeat(tmp_path, [800], ARMS, dict.fromkeys(ARMS, 10), interval_s=3600):
         pass
     last = capsys.readouterr().out.strip().splitlines()[-1]
-    assert "overall 33% (10/30 evals)" in last
-    assert "runs done 1/3" in last
+    assert "33% of 30 evaluations, 1/3 runs done" in last
 
 
 def test_heartbeat_disabled_prints_nothing(tmp_path, capsys):
@@ -72,4 +66,4 @@ def test_heartbeat_total_uses_each_arms_budget(tmp_path, capsys):
     budgets = {"gaussian": 892, "de_rand_1_bin": 888}
     with Heartbeat(tmp_path, [1, 2], tuple(budgets), budgets, interval_s=3600):
         pass
-    assert "(0/3,560 evals)" in capsys.readouterr().out
+    assert "of 3,560 evaluations" in capsys.readouterr().out
