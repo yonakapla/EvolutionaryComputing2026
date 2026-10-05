@@ -36,7 +36,7 @@ from mutation_ab.records import read_generations
 REFERENCES = (ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED)
 # Order in tables and figures: shrinking-size cells, fixed-size cells, references, baseline.
 ARM_ORDER = (ARM_DIFFERENCE, ARM_SIZE_MATCHED, ARM_NORMALISED, ARM_GAUSSIAN, *REFERENCES, ARM_RANDOM)
-# The report discusses only canonical DE among the references; the tables keep all of them.
+# Figures show only DE (0.5, 0.9) among the references, to stay readable; the tables keep all of them.
 FIGURE_ARMS = tuple(arm for arm in ARM_ORDER if arm not in (ARM_MIXTURE, ARM_DE_MATCHED))
 # Names as in the report's tables.
 NAMES = {
