@@ -29,13 +29,18 @@ def by_uid(individuals) -> list[Individual]:
     return sorted(individuals, key=lambda ind: ind.tags["uid"])
 
 
-def record_generation(ctx: ArmContext, survivors: list[Individual], newborn: list[Individual]) -> None:
+def record_generation(
+    ctx: ArmContext, survivors: list[Individual], newborn: list[Individual]
+) -> None:
     genomes = np.array([ind.genotype for ind in survivors], dtype=float)
     fitness = np.array([ind.fitness for ind in survivors])
     ctx.best_so_far = min(ctx.best_so_far, float(fitness.min()))
     bred = [ind for ind in newborn if ind.tags["kind"] != "init"]
-    # Every non-Gaussian step counts as "difference" here; difference_rms is F(b - c) in every arm.
-    steps = [ind.tags["proposal_rms"] for ind in bred if ind.tags["kind"] != KIND_GAUSSIAN]
+    # Every non-Gaussian step counts as "difference" here;
+    # difference_rms is F(b - c) in every arm.
+    steps = [
+        ind.tags["proposal_rms"] for ind in bred if ind.tags["kind"] != KIND_GAUSSIAN
+    ]
     spreads = [ind.tags["difference_rms"] for ind in bred]
     ctx.recorder.generation(
         {
@@ -57,9 +62,11 @@ def record_generation(ctx: ArmContext, survivors: list[Individual], newborn: lis
 
 
 def log_step(ctx: ArmContext, proposal: Proposal, genomes: np.ndarray) -> None:
-    """Keep the steps of every `step_log_every`-th generation for the step-direction analysis."""
+    """Keep every `step_log_every`-th generation's steps for the direction analysis."""
     if ctx.generation % ctx.cfg.step_log_every == 0:
-        ctx.recorder.step(ctx.generation, proposal.kind, proposal.child - genomes[proposal.parent])
+        ctx.recorder.step(
+            ctx.generation, proposal.kind, proposal.child - genomes[proposal.parent]
+        )
 
 
 def reproduce(population: Population, ctx: ArmContext) -> Population:
@@ -74,7 +81,9 @@ def reproduce(population: Population, ctx: ArmContext) -> Population:
     return population
 
 
-def make_child(ctx: ArmContext, proposal: Proposal, adults: list[Individual]) -> Individual:
+def make_child(
+    ctx: ArmContext, proposal: Proposal, adults: list[Individual]
+) -> Individual:
     parent = adults[proposal.parent]
     child = Individual()
     child.genotype = proposal.child.tolist()
@@ -130,7 +139,7 @@ def survive(population: Population, ctx: ArmContext) -> Population:
 
 
 def make_founders(ctx: ArmContext, initial: InitialPopulation) -> list[Individual]:
-    """Turn the shared, already evaluated initial population into generation-0 individuals."""
+    """Turn the shared, evaluated initial population into generation-0 individuals."""
     record_founders(initial, ctx.recorder)
     founders = []
     for genome, result in zip(initial.genomes, initial.results, strict=True):
@@ -150,8 +159,16 @@ def make_founders(ctx: ArmContext, initial: InitialPopulation) -> list[Individua
     return founders
 
 
-def evolve(ctx: ArmContext, initial: InitialPopulation, operations: list[EAOperation], generations: int) -> dict:
-    """Run an ariel.ec EA from the shared founders; the EA and DE arms differ only in their operations."""
+def evolve(
+    ctx: ArmContext,
+    initial: InitialPopulation,
+    operations: list[EAOperation],
+    generations: int,
+) -> dict:
+    """Run an ariel EA from the shared founders.
+
+    The EA and DE arms differ only in the operations they pass in.
+    """
     ea = EA(
         Population(make_founders(ctx, initial)),
         operations,
@@ -174,5 +191,9 @@ def run_ea(
     recorder: RunRecorder,
 ) -> dict:
     ctx = ArmContext(cfg, arm, evaluator, streams, recorder)
-    operations = [EAOperation(reproduce, ctx), EAOperation(evaluate_children, ctx), EAOperation(survive, ctx)]
+    operations = [
+        EAOperation(reproduce, ctx),
+        EAOperation(evaluate_children, ctx),
+        EAOperation(survive, ctx),
+    ]
     return evolve(ctx, initial, operations, cfg.generations)

@@ -49,7 +49,13 @@ def parse_arms(text: str) -> tuple[str, ...]:
     return arms
 
 
-def run_one(cfg: RunConfig, arm: str, initial: InitialPopulation, evaluator: Evaluator, recorder: RunRecorder) -> dict:
+def run_one(
+    cfg: RunConfig,
+    arm: str,
+    initial: InitialPopulation,
+    evaluator: Evaluator,
+    recorder: RunRecorder,
+) -> dict:
     streams = make_streams(cfg.seed)
     if arm == ARM_RANDOM:
         return run_random(cfg, initial, evaluator, streams, recorder)
@@ -58,7 +64,9 @@ def run_one(cfg: RunConfig, arm: str, initial: InitialPopulation, evaluator: Eva
     return run_ea(cfg, arm, initial, evaluator, streams, recorder)
 
 
-def run_seed(seed: int, out_root: Path, overrides: dict, arms: tuple[str, ...] = ALL_ARMS) -> dict:
+def run_seed(
+    seed: int, out_root: Path, overrides: dict, arms: tuple[str, ...] = ALL_ARMS
+) -> dict:
     started = time.perf_counter()
     cfg = RunConfig(seed=seed, **overrides)
     set_seed(seed)
@@ -67,7 +75,9 @@ def run_seed(seed: int, out_root: Path, overrides: dict, arms: tuple[str, ...] =
     length = genome_length(n_inputs(model), cfg.hidden_size, model.nu)
     seed_dir = out_root / f"seed_{seed}"
     status: dict[str, str] = {}
-    print(f"[seed {seed}] started: evaluating the shared initial population", flush=True)
+    print(
+        f"[seed {seed}] started: evaluating the shared initial population", flush=True
+    )
     try:
         initial = make_initial(cfg, make_streams(seed), evaluator, length)
     except UnstableSimulation as error:
@@ -77,7 +87,9 @@ def run_seed(seed: int, out_root: Path, overrides: dict, arms: tuple[str, ...] =
         return {"seed": seed, "status": status, "wall_s": time.perf_counter() - started}
 
     for arm in arms:
-        recorder = RunRecorder(seed_dir / arm, cfg, arm, hashes, cfg.generations_for(arm))
+        recorder = RunRecorder(
+            seed_dir / arm, cfg, arm, hashes, cfg.generations_for(arm)
+        )
         try:
             summary = run_one(cfg, arm, initial, evaluator, recorder)
         except UnstableSimulation as error:
@@ -90,22 +102,37 @@ def run_seed(seed: int, out_root: Path, overrides: dict, arms: tuple[str, ...] =
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Step size x step direction experiment (see PROTOCOL.md)")
+    parser = argparse.ArgumentParser(
+        description="Step size x step direction experiment (see PROTOCOL.md)"
+    )
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--seeds", required=True, help="e.g. 700-705 or 800,801")
-    parser.add_argument("--generations", type=int, default=RunConfig(seed=0).generations)
+    parser.add_argument(
+        "--generations", type=int, default=RunConfig(seed=0).generations
+    )
     parser.add_argument("--population", type=int, default=12)
     parser.add_argument("--duration", type=float, default=15.0)
     parser.add_argument("--workers", type=int, default=1)
-    parser.add_argument("--arms", default=",".join(ALL_ARMS), help=f"comma-separated; any of {', '.join(ALL_ARMS)}")
-    parser.add_argument("--body", default=RunConfig(seed=0).body, help="a John Set body")
+    parser.add_argument(
+        "--arms",
+        default=",".join(ALL_ARMS),
+        help=f"comma-separated; any of {', '.join(ALL_ARMS)}",
+    )
+    parser.add_argument(
+        "--body", default=RunConfig(seed=0).body, help="a John Set body"
+    )
     parser.add_argument(
         "--gaussian-sd",
         type=float,
         default=RunConfig(seed=0).gaussian_sd,
         help="Gaussian step SD, also the normalised arm's fixed step size (F stays tied to 0.15)",
     )
-    parser.add_argument("--heartbeat", type=float, default=60.0, help="seconds between progress lines; 0 disables")
+    parser.add_argument(
+        "--heartbeat",
+        type=float,
+        default=60.0,
+        help="seconds between progress lines; 0 disables",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -125,8 +152,11 @@ def main(argv: list[str] | None = None) -> int:
     }
     reference = RunConfig(seed=0, **overrides)
     budgets = {arm: reference.budget_for(arm) for arm in arms}
-    de_note = (f" ({reference.budget_for(DE_ARMS[0])} for canonical DE)"
-               if any(arm in DE_ARMS for arm in arms) else "")
+    de_note = (
+        f" ({reference.budget_for(DE_ARMS[0])} for canonical DE)"
+        if any(arm in DE_ARMS for arm in arms)
+        else ""
+    )
     args.out.mkdir(parents=True, exist_ok=True)
     print(
         f"Running seeds {seeds[0]}..{seeds[-1]} ({len(seeds)} seeds) x arms {', '.join(arms)}; "
@@ -142,11 +172,23 @@ def main(argv: list[str] | None = None) -> int:
             results = [run_seed(seed, args.out, overrides, arms) for seed in seeds]
         else:
             context = multiprocessing.get_context("spawn")
-            with ProcessPoolExecutor(max_workers=args.workers, mp_context=context) as pool:
-                results = list(pool.map(run_seed, seeds, repeat(args.out), repeat(overrides), repeat(arms)))
+            with ProcessPoolExecutor(
+                max_workers=args.workers, mp_context=context
+            ) as pool:
+                results = list(
+                    pool.map(
+                        run_seed,
+                        seeds,
+                        repeat(args.out),
+                        repeat(overrides),
+                        repeat(arms),
+                    )
+                )
 
     print(json.dumps(results, indent=2))
-    complete = all(state == "complete" for r in results for state in r["status"].values())
+    complete = all(
+        state == "complete" for r in results for state in r["status"].values()
+    )
     return 0 if complete else 1
 
 

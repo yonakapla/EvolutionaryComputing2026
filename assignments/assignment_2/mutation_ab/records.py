@@ -40,8 +40,10 @@ def genome_sha1(genome) -> str:
     return hashlib.sha1(np.asarray(genome, dtype=np.float64).tobytes()).hexdigest()
 
 
-def evaluation_record(uid: int, generation: int, kind: str, genome, result, wall_s: float) -> dict:
-    """The children.jsonl record of an evaluation without a parent (founders and random search)."""
+def evaluation_record(
+    uid: int, generation: int, kind: str, genome, result, wall_s: float
+) -> dict:
+    """children.jsonl record of a parentless evaluation (founder or random sample)."""
     return {
         "uid": uid,
         "generation": generation,
@@ -73,7 +75,12 @@ def git_commit() -> dict:
 
 class RunRecorder:
     def __init__(
-        self, directory: Path, cfg: RunConfig, arm: str, hashes: dict[str, str], total_generations: int | None = None
+        self,
+        directory: Path,
+        cfg: RunConfig,
+        arm: str,
+        hashes: dict[str, str],
+        total_generations: int | None = None,
     ) -> None:
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=False)
@@ -91,8 +98,12 @@ class RunRecorder:
         }
         (self.directory / "config.json").write_text(json.dumps(meta, indent=2))
         self._children = (self.directory / "children.jsonl").open("w")
-        self._generations_file = (self.directory / "generations.csv").open("w", newline="")
-        self._generations = csv.DictWriter(self._generations_file, fieldnames=GENERATION_FIELDS)
+        self._generations_file = (self.directory / "generations.csv").open(
+            "w", newline=""
+        )
+        self._generations = csv.DictWriter(
+            self._generations_file, fieldnames=GENERATION_FIELDS
+        )
         self._generations.writeheader()
         self._adults: list[np.ndarray] = []
         self._steps: list[tuple[int, str, np.ndarray]] = []
@@ -127,7 +138,9 @@ class RunRecorder:
     def complete(self, summary: dict) -> None:
         self._close()
         if self._adults:
-            np.savez_compressed(self.directory / "adults.npz", adults=np.stack(self._adults))
+            np.savez_compressed(
+                self.directory / "adults.npz", adults=np.stack(self._adults)
+            )
         if self._steps:
             generation, kind, delta = zip(*self._steps, strict=True)
             np.savez_compressed(

@@ -2,8 +2,8 @@ import math
 
 import numpy as np
 import pytest
-from conftest import LENGTH, population
 
+from conftest import LENGTH, population
 from mutation_ab.config import ARM_DIFFERENCE, ARM_GAUSSIAN, RunConfig
 from mutation_ab.metrics import genotype_diversity, rms, unique_genomes
 from mutation_ab.operators import (
@@ -57,14 +57,18 @@ def test_mask_forces_one_coordinate(rate, expected):
 
 def test_identical_population_gives_zero_difference_step():
     genomes = np.tile(np.random.default_rng(3).normal(size=LENGTH), (12, 1))
-    proposal = propose_child(genomes, np.zeros(12), RunConfig(seed=1), ARM_DIFFERENCE, make_streams(1))
+    proposal = propose_child(
+        genomes, np.zeros(12), RunConfig(seed=1), ARM_DIFFERENCE, make_streams(1)
+    )
     assert proposal.kind == ARM_DIFFERENCE
     assert proposal.proposal_rms == 0.0
     assert proposal.change_rms == 0.0
     np.testing.assert_array_equal(proposal.child, genomes[proposal.parent])
 
 
-@pytest.mark.parametrize(("arm", "kind"), [(ARM_DIFFERENCE, ARM_DIFFERENCE), (ARM_GAUSSIAN, KIND_GAUSSIAN)])
+@pytest.mark.parametrize(
+    ("arm", "kind"), [(ARM_DIFFERENCE, ARM_DIFFERENCE), (ARM_GAUSSIAN, KIND_GAUSSIAN)]
+)
 def test_pure_arms_propose_one_kind(arm, kind):
     genomes, fitness = population()
     streams = make_streams(5)

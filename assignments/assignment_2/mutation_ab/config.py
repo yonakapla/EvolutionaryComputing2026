@@ -34,7 +34,8 @@ class RunConfig:
     phase_hz: float = 1.0
     init_sd: float = 0.5
     gaussian_sd: float = 0.15
-    # F(b - c) of two initial genomes has SD 0.15, the default Gaussian step; --gaussian-sd leaves F alone.
+    # F(b - c) of two initial genomes has SD 0.15, the default Gaussian step.
+    # --gaussian-sd leaves F alone.
     scale_f: float = 0.15 / (math.sqrt(2) * 0.5)
     crossover_rate: float = 0.2
     replacement_probability: float = 0.10
@@ -45,8 +46,10 @@ class RunConfig:
 
     def __post_init__(self) -> None:
         if self.population_size < max(3, self.tournament_size):
-            msg = "population_size must allow a parent, two distinct donors and the tournament"
-            raise ValueError(msg)
+            raise ValueError(
+                "population_size must allow a parent, two distinct donors "
+                "and the tournament"
+            )
         if self.generations < 1:
             raise ValueError("generations must be >= 1")
         if self.duration <= 0:
@@ -70,7 +73,7 @@ class RunConfig:
 
     @property
     def de_generations(self) -> int:
-        """Generations of canonical DE (population_size trials each) within the EA arms' budget."""
+        """Canonical DE generations (population_size trials each) in the EA budget."""
         return (self.budget - self.population_size) // self.population_size
 
     def budget_for(self, arm: str) -> int:

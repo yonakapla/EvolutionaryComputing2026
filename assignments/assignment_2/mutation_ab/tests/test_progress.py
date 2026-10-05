@@ -26,7 +26,12 @@ def test_count_progress_handles_runs_not_started(tmp_path):
 
 def test_progress_line_reports_percent_rate_runs_and_eta():
     line = progress_line(
-        evals=63_910, total=99_360, finished=10, runs=30, elapsed_s=1_917.3, now=datetime(2026, 9, 28, 15, 5, 55)
+        evals=63_910,
+        total=99_360,
+        finished=10,
+        runs=30,
+        elapsed_s=1_917.3,
+        now=datetime(2026, 9, 28, 15, 5, 55),
     )
     assert line == (
         "15:05:55  overall 64% (63,910/99,360 evals) · 300 s/10k evals · runs done 10/30 · ETA 15:23"
@@ -34,8 +39,18 @@ def test_progress_line_reports_percent_rate_runs_and_eta():
 
 
 def test_progress_line_before_any_evaluation():
-    line = progress_line(evals=0, total=100, finished=0, runs=3, elapsed_s=5.0, now=datetime(2026, 9, 28, 15, 0, 0))
-    assert line == "15:00:00  overall 0% (0/100 evals) · -- s/10k evals · runs done 0/3 · ETA --:--"
+    line = progress_line(
+        evals=0,
+        total=100,
+        finished=0,
+        runs=3,
+        elapsed_s=5.0,
+        now=datetime(2026, 9, 28, 15, 0, 0),
+    )
+    assert (
+        line
+        == "15:00:00  overall 0% (0/100 evals) · -- s/10k evals · runs done 0/3 · ETA --:--"
+    )
 
 
 def test_heartbeat_prints_a_final_line_on_exit(tmp_path, capsys):

@@ -28,9 +28,13 @@ def make_initial(
         started = time.perf_counter()
         results.append(evaluator(genome))
         wall.append(time.perf_counter() - started)
-    return InitialPopulation(genomes=genomes, results=tuple(results), wall_s=tuple(wall))
+    return InitialPopulation(
+        genomes=genomes, results=tuple(results), wall_s=tuple(wall)
+    )
 
 
 def record_founders(initial: InitialPopulation, recorder: RunRecorder) -> None:
-    for uid, (genome, result, wall) in enumerate(zip(initial.genomes, initial.results, initial.wall_s, strict=True)):
+    for uid, (genome, result, wall) in enumerate(
+        zip(initial.genomes, initial.results, initial.wall_s, strict=True)
+    ):
         recorder.child(evaluation_record(uid, 0, "init", genome, result, wall))

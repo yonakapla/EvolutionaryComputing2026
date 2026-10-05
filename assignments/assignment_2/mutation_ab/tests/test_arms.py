@@ -3,8 +3,15 @@ from itertools import pairwise
 
 import numpy as np
 import pytest
-from conftest import FAKE_HASHES, LENGTH, TEST_ARMS, children, fake_evaluator, make_fake_root
 
+from conftest import (
+    FAKE_HASHES,
+    LENGTH,
+    TEST_ARMS,
+    children,
+    fake_evaluator,
+    make_fake_root,
+)
 from mutation_ab.config import ARM_DIFFERENCE, ARM_MIXTURE, RunConfig
 from mutation_ab.ea_arm import run_ea
 from mutation_ab.evaluate import UnstableSimulation
@@ -33,7 +40,11 @@ def test_every_arm_spends_exactly_the_budget(root):
 
 def test_all_arms_share_the_initial_population(root):
     founders = {
-        arm: [c["genome_sha1"] for c in children(root / "seed_3" / arm) if c["kind"] == "init"]
+        arm: [
+            c["genome_sha1"]
+            for c in children(root / "seed_3" / arm)
+            if c["kind"] == "init"
+        ]
         for arm in TEST_ARMS
     }
     assert founders["difference"] == founders["mixture"] == founders["random"]
@@ -62,7 +73,10 @@ def test_parents_and_donors_come_from_previous_survivors(root):
             assert record["parent_uid"] in alive
             assert set(record["donor_uids"]) <= alive
             assert record["parent_uid"] not in record["donor_uids"]
-        elite = min((r for r in records if r["uid"] in alive), key=lambda r: (r["distance"], r["uid"]))
+        elite = min(
+            (r for r in records if r["uid"] in alive),
+            key=lambda r: (r["distance"], r["uid"]),
+        )
         alive = {elite["uid"], *(r["uid"] for r in born)}
 
 
@@ -77,7 +91,11 @@ def test_zero_probability_mixture_reproduces_difference_arm(tmp_path):
 
 def test_full_probability_mixture_uses_only_gaussian_children(tmp_path):
     root = make_fake_root(tmp_path, [5], replacement_probability=1.0, **SMALL)
-    kinds = {c["kind"] for c in children(root / "seed_5" / ARM_MIXTURE) if c["kind"] != "init"}
+    kinds = {
+        c["kind"]
+        for c in children(root / "seed_5" / ARM_MIXTURE)
+        if c["kind"] != "init"
+    }
     assert kinds == {"gaussian"}
 
 

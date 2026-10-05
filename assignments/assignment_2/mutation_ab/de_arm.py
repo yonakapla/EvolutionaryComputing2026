@@ -1,18 +1,31 @@
-"""Reference arm: canonical DE/rand/1/bin (Storn & Price 1997) with one-to-one replacement:
-each adult's trial replaces it only if the trial is at least as good."""
+"""Reference arm: canonical DE/rand/1/bin (Storn & Price 1997).
+
+One-to-one replacement: each adult's trial replaces it only if the trial is at
+least as good.
+"""
 
 import numpy as np
 from ariel.ec import EAOperation, Population
 
 from mutation_ab.config import RunConfig
-from mutation_ab.ea_arm import ArmContext, by_uid, evaluate_children, evolve, log_step, make_child, record_generation
+from mutation_ab.ea_arm import (
+    ArmContext,
+    by_uid,
+    evaluate_children,
+    evolve,
+    log_step,
+    make_child,
+    record_generation,
+)
 from mutation_ab.initial import Evaluator, InitialPopulation
 from mutation_ab.operators import de_trial
 from mutation_ab.records import RunRecorder
 from mutation_ab.streams import Streams
 
 
-def make_trials(population: Population, ctx: ArmContext, scale_f: float, crossover_rate: float) -> Population:
+def make_trials(
+    population: Population, ctx: ArmContext, scale_f: float, crossover_rate: float
+) -> Population:
     ctx.generation += 1
     targets = by_uid(population)
     genomes = np.array([ind.genotype for ind in targets], dtype=float)
@@ -25,7 +38,11 @@ def make_trials(population: Population, ctx: ArmContext, scale_f: float, crossov
 
 def select_one_to_one(population: Population, ctx: ArmContext) -> Population:
     members = by_uid(population)
-    adults = {ind.tags["uid"]: ind for ind in members if ind.tags["generation"] < ctx.generation}
+    adults = {
+        ind.tags["uid"]: ind
+        for ind in members
+        if ind.tags["generation"] < ctx.generation
+    }
     trials = [ind for ind in members if ind.tags["generation"] == ctx.generation]
     for trial in trials:
         target = adults[trial.tags["parent_uid"]]

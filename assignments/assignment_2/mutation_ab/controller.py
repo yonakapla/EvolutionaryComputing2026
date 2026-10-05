@@ -30,10 +30,14 @@ def unpack(genome: np.ndarray, n_inputs: int, hidden: int, n_outputs: int) -> La
     return Layers(w1.reshape(n_inputs, hidden), b1, w2.reshape(hidden, n_outputs), b2)
 
 
-def observe(data: mj.MjData, target_xy: tuple[float, float], phase_hz: float) -> np.ndarray:
+def observe(
+    data: mj.MjData, target_xy: tuple[float, float], phase_hz: float
+) -> np.ndarray:
     phase = 2.0 * np.pi * phase_hz * data.time
     to_target = np.asarray(target_xy) - data.qpos[0:2]
-    return np.concatenate([data.qpos, data.qvel, to_target, [np.sin(phase), np.cos(phase)]])
+    return np.concatenate(
+        [data.qpos, data.qvel, to_target, [np.sin(phase), np.cos(phase)]]
+    )
 
 
 def act(layers: Layers, observation: np.ndarray) -> np.ndarray:

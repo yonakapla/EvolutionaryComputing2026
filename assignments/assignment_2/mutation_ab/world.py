@@ -13,6 +13,8 @@ def build_model(cfg: RunConfig) -> tuple[mj.MjModel, dict[str, str]]:
     if not callable(body) or getattr(body, "__module__", None) != john_set.__name__:
         raise ValueError(f"unknown John Set body {cfg.body!r}")
     world = SimpleFlatWorld()
-    world.spawn(body().spec, position=list(cfg.spawn), correct_collision_with_floor=True)
+    world.spawn(
+        body().spec, position=list(cfg.spawn), correct_collision_with_floor=True
+    )
     model = world.spec.compile()
     return model, {"model_sha1": hashlib.sha1(world.spec.to_xml().encode()).hexdigest()}

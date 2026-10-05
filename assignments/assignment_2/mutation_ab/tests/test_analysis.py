@@ -4,8 +4,8 @@ import shutil
 
 import numpy as np
 import pytest
-from conftest import LENGTH, make_fake_root
 
+from conftest import LENGTH, make_fake_root
 from mutation_ab import analysis
 from mutation_ab.config import ALL_ARMS
 
@@ -22,7 +22,9 @@ def root(tmp_path_factory):
 
 def test_in_span_fraction_is_one_inside_and_zero_orthogonal():
     rng = np.random.default_rng(0)
-    basis = np.linalg.qr(rng.normal(size=(20, 3)))[0].T  # 3 orthonormal directions in 20-D
+    basis = np.linalg.qr(rng.normal(size=(20, 3)))[
+        0
+    ].T  # 3 orthonormal directions in 20-D
     parents = rng.normal(size=(6, 3)) @ basis
     adults = np.stack([parents, parents])
     inside = rng.normal(size=(4, 3)) @ basis
@@ -36,11 +38,15 @@ def test_in_span_fraction_is_one_inside_and_zero_orthogonal():
 
 def test_identical_population_has_no_span():
     adults = np.ones((2, 6, 10))
-    assert analysis.in_span_fraction(adults, np.ones(3, dtype=int), np.ones((3, 10))) == {}
+    assert (
+        analysis.in_span_fraction(adults, np.ones(3, dtype=int), np.ones((3, 10))) == {}
+    )
 
 
 def test_signed_test_reports_direction_and_ci():
-    result = analysis.signed_test(np.array([0.5, 0.6, 0.7, 0.8, 0.9, 1.0]), np.random.default_rng(0))
+    result = analysis.signed_test(
+        np.array([0.5, 0.6, 0.7, 0.8, 0.9, 1.0]), np.random.default_rng(0)
+    )
     assert result["positive"] == 6
     assert result["p"] == pytest.approx(0.03125)
     assert 0.5 <= result["ci_low"] <= result["mean"] <= result["ci_high"] <= 1.0
@@ -63,7 +69,9 @@ def test_factorial_family_is_holm_adjusted(root):
     factorial = [r for r in stats if r["family"] == "factorial"]
     assert len(factorial) == 3
     assert all(r["p_holm"] >= r["p"] for r in factorial)
-    assert all(r["p_holm"] is None for r in stats if r["family"] == "references (unadjusted)")
+    assert all(
+        r["p_holm"] is None for r in stats if r["family"] == "references (unadjusted)"
+    )
 
 
 def test_load_rejects_uneven_seed_sets(root, tmp_path):
@@ -89,14 +97,20 @@ def test_step_shape_counts_zero_steps_and_changed_weights(root):
     gaussian = shape["gaussian"]
     assert gaussian["zero_step_share"] == 0.0
     assert gaussian["weights_changed_median"] >= 1
-    assert gaussian["change_per_changed_weight_median"] >= gaussian["step_rms_median"] > 0
+    assert (
+        gaussian["change_per_changed_weight_median"] >= gaussian["step_rms_median"] > 0
+    )
 
 
 def test_equivalent_generations_match_ea_generations():
     # EA and random search: 12 initial evaluations, then 11 per generation.
-    np.testing.assert_allclose(analysis.equivalent_generations([12, 23, 12 + 11 * 800], 12), [0, 1, 800])
+    np.testing.assert_allclose(
+        analysis.equivalent_generations([12, 23, 12 + 11 * 800], 12), [0, 1, 800]
+    )
     # Canonical DE generation 733 (12 per generation) sits just below EA generation 800.
-    assert analysis.equivalent_generations([12 + 12 * 733], 12)[0] == pytest.approx(799.6, abs=0.1)
+    assert analysis.equivalent_generations([12 + 12 * 733], 12)[0] == pytest.approx(
+        799.6, abs=0.1
+    )
 
 
 def test_holm_known_values():
@@ -118,8 +132,14 @@ def test_out_option_writes_elsewhere(root, tmp_path):
 
 
 def test_frozen_genes_and_gaussian_step_share(root):
-    rows = {(r["arm"], r["seed"]): r for r in (analysis.seed_metrics(run) for arm in analysis.load(root).values()
-                                                  for run in arm.values())}
+    rows = {
+        (r["arm"], r["seed"]): r
+        for r in (
+            analysis.seed_metrics(run)
+            for arm in analysis.load(root).values()
+            for run in arm.values()
+        )
+    }
     gaussian, difference = rows[("gaussian", 11)], rows[("difference", 11)]
     assert gaussian["gaussian_step_share"] == 1.0
     assert difference["gaussian_step_share"] == 0.0
@@ -127,10 +147,20 @@ def test_frozen_genes_and_gaussian_step_share(root):
 
 
 def test_sigma_run_borrows_sigma_free_arms(root, tmp_path):
-    sigma = make_fake_root(tmp_path / "sigma", SEEDS, ("normalised", "gaussian"), gaussian_sd=0.3, **SMALL)
+    sigma = make_fake_root(
+        tmp_path / "sigma", SEEDS, ("normalised", "gaussian"), gaussian_sd=0.3, **SMALL
+    )
     runs = analysis.borrow_sigma_free_arms(analysis.load(sigma), root)
-    assert set(runs) == {"difference", "size_matched", "normalised", "gaussian", "random"}
-    assert [r["family"] for r in analysis.statistical_tests(runs)].count("factorial") == 3
+    assert set(runs) == {
+        "difference",
+        "size_matched",
+        "normalised",
+        "gaussian",
+        "random",
+    }
+    assert [r["family"] for r in analysis.statistical_tests(runs)].count(
+        "factorial"
+    ) == 3
 
 
 def test_b_and_d_alone_still_get_the_direction_test(tmp_path):
@@ -140,6 +170,12 @@ def test_b_and_d_alone_still_get_the_direction_test(tmp_path):
 
 
 def test_borrowing_refuses_a_different_setup(root, tmp_path):
-    other = make_fake_root(tmp_path / "other", SEEDS, ("normalised", "gaussian"), crossover_rate=0.5, **SMALL)
+    other = make_fake_root(
+        tmp_path / "other",
+        SEEDS,
+        ("normalised", "gaussian"),
+        crossover_rate=0.5,
+        **SMALL,
+    )
     with pytest.raises(ValueError, match="differs"):
         analysis.borrow_sigma_free_arms(analysis.load(other), root)

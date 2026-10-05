@@ -18,12 +18,16 @@ def count_progress(out: Path, seeds, arms) -> tuple[int, int]:
     return evaluations, finished
 
 
-def progress_line(evals: int, total: int, finished: int, runs: int, elapsed_s: float, now: datetime) -> str:
+def progress_line(
+    evals: int, total: int, finished: int, runs: int, elapsed_s: float, now: datetime
+) -> str:
     percent = 100 * evals / total if total else 0.0
     if evals and elapsed_s > 0:
         seconds_per_eval = elapsed_s / evals
         rate = f"{seconds_per_eval * 10_000:.0f} s/10k evals"
-        eta = (now + timedelta(seconds=seconds_per_eval * (total - evals))).strftime("%H:%M")
+        eta = (now + timedelta(seconds=seconds_per_eval * (total - evals))).strftime(
+            "%H:%M"
+        )
     else:
         rate, eta = "-- s/10k evals", "--:--"
     return (
@@ -35,7 +39,9 @@ def progress_line(evals: int, total: int, finished: int, runs: int, elapsed_s: f
 class Heartbeat:
     """Prints overall progress, read from the run directories, while seeds run in worker processes."""
 
-    def __init__(self, out: Path, seeds, arms, budgets: dict[str, int], interval_s: float) -> None:
+    def __init__(
+        self, out: Path, seeds, arms, budgets: dict[str, int], interval_s: float
+    ) -> None:
         self.out = Path(out)
         self.seeds = list(seeds)
         self.arms = tuple(arms)

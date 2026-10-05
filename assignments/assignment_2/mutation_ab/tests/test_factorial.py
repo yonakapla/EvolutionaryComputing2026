@@ -3,8 +3,8 @@ from itertools import pairwise
 
 import numpy as np
 import pytest
-from conftest import FAKE_HASHES, LENGTH, children, fake_evaluator, population
 
+from conftest import FAKE_HASHES, LENGTH, children, fake_evaluator, population
 from mutation_ab.config import (
     ARM_DE,
     ARM_DE_MATCHED,
@@ -51,7 +51,9 @@ def test_normalised_keeps_difference_direction_at_fixed_size():
 
 def test_normalised_falls_back_to_gaussian_when_population_is_identical():
     genomes = np.tile(np.random.default_rng(4).normal(size=LENGTH), (12, 1))
-    proposal = propose_child(genomes, np.zeros(12), RunConfig(seed=4), ARM_NORMALISED, make_streams(4))
+    proposal = propose_child(
+        genomes, np.zeros(12), RunConfig(seed=4), ARM_NORMALISED, make_streams(4)
+    )
     assert proposal.kind == KIND_GAUSSIAN
     assert proposal.change_rms > 0
 
@@ -77,7 +79,9 @@ def test_de_trial_uses_three_distinct_other_members():
         assert target not in trial.donors
         a, b, c = trial.donors
         mixed = trial.child != genomes[target]
-        np.testing.assert_allclose(trial.child[mixed], (genomes[a] + 0.5 * (genomes[b] - genomes[c]))[mixed])
+        np.testing.assert_allclose(
+            trial.child[mixed], (genomes[a] + 0.5 * (genomes[b] - genomes[c]))[mixed]
+        )
         assert trial.proposal_rms == pytest.approx(rms(0.5 * (genomes[b] - genomes[c])))
 
 
@@ -86,7 +90,9 @@ def test_de_arm_is_one_to_one_and_within_budget(tmp_path, arm):
     cfg = RunConfig(seed=7, **SMALL)
     initial = make_initial(cfg, make_streams(7), fake_evaluator, LENGTH)
     recorder = RunRecorder(tmp_path / arm, cfg, arm, FAKE_HASHES)
-    recorder.complete(run_de(cfg, arm, initial, fake_evaluator, make_streams(7), recorder))
+    recorder.complete(
+        run_de(cfg, arm, initial, fake_evaluator, make_streams(7), recorder)
+    )
     records = children(tmp_path / arm)
     assert len(records) == cfg.population_size * (1 + cfg.de_generations) <= cfg.budget
     with (tmp_path / arm / "generations.csv").open() as handle:
@@ -105,7 +111,9 @@ def test_new_ea_arms_log_their_step_kind_and_steps(tmp_path, arm):
     cfg = RunConfig(seed=8, step_log_every=2, **SMALL)
     initial = make_initial(cfg, make_streams(8), fake_evaluator, LENGTH)
     recorder = RunRecorder(tmp_path / arm, cfg, arm, FAKE_HASHES)
-    recorder.complete(run_ea(cfg, arm, initial, fake_evaluator, make_streams(8), recorder))
+    recorder.complete(
+        run_ea(cfg, arm, initial, fake_evaluator, make_streams(8), recorder)
+    )
     kinds = {r["kind"] for r in children(tmp_path / arm) if r["kind"] != "init"}
     assert kinds <= {arm, KIND_GAUSSIAN}
     steps = np.load(tmp_path / arm / "steps.npz")

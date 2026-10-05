@@ -9,7 +9,9 @@ from mutation_ab.records import RunRecorder, evaluation_record
 from mutation_ab.streams import Streams
 
 
-def _row(generation: int, batch: list[float], best_so_far: float, evaluations: int) -> dict:
+def _row(
+    generation: int, batch: list[float], best_so_far: float, evaluations: int
+) -> dict:
     return {
         "generation": generation,
         "best": min(batch),
@@ -51,7 +53,16 @@ def run_random(
             result = evaluator(genome)
             evaluations += 1
             batch.append(result.distance)
-            recorder.child(evaluation_record(uid, generation, "random", genome, result, time.perf_counter() - started))
+            recorder.child(
+                evaluation_record(
+                    uid,
+                    generation,
+                    "random",
+                    genome,
+                    result,
+                    time.perf_counter() - started,
+                )
+            )
             uid += 1
         best_so_far = min(best_so_far, min(batch))
         recorder.generation(_row(generation, batch, best_so_far, evaluations))

@@ -2,7 +2,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from mutation_ab.config import ARM_DIFFERENCE, ARM_NORMALISED, ARM_SIZE_MATCHED, RunConfig
+from mutation_ab.config import (
+    ARM_DIFFERENCE,
+    ARM_NORMALISED,
+    ARM_SIZE_MATCHED,
+    RunConfig,
+)
 from mutation_ab.metrics import rms
 from mutation_ab.streams import Streams
 
@@ -39,9 +44,14 @@ def binomial_mask(length: int, rate: float, rng: np.random.Generator) -> np.ndar
     return mask
 
 
-def shaped_step(difference: np.ndarray, noise: np.ndarray, arm: str, target_rms: float) -> tuple[np.ndarray, str]:
-    """Turn F(b - c) into the arm's step. Sizes are RMS before the crossover mask, so a sparse
-    difference gives few, large changes. A zero difference falls back to the Gaussian draw."""
+def shaped_step(
+    difference: np.ndarray, noise: np.ndarray, arm: str, target_rms: float
+) -> tuple[np.ndarray, str]:
+    """Turn F(b - c) into the arm's step.
+
+    Sizes are RMS before the crossover mask, so a sparse difference gives few,
+    large changes. A zero difference falls back to the Gaussian draw.
+    """
     size = rms(difference)
     if arm == ARM_SIZE_MATCHED:
         return noise / rms(noise) * size, ARM_SIZE_MATCHED
@@ -52,11 +62,14 @@ def shaped_step(difference: np.ndarray, noise: np.ndarray, arm: str, target_rms:
     return difference, ARM_DIFFERENCE
 
 
-def propose_child(genomes: np.ndarray, fitness: np.ndarray, cfg: RunConfig, arm: str, streams: Streams) -> Proposal:
+def propose_child(
+    genomes: np.ndarray, fitness: np.ndarray, cfg: RunConfig, arm: str, streams: Streams
+) -> Proposal:
     length = genomes.shape[1]
     parent = tournament(fitness, cfg.tournament_size, streams.selection)
     b, c = draw_donors(len(genomes), parent, streams.selection)
-    # Every draw happens in every arm so that all arms consume their streams identically.
+    # Every draw happens in every arm so that all arms consume their streams
+    # identically.
     replace = streams.replacement.random() < cfg.replacement_probability_for(arm)
     noise = streams.gaussian.normal(0.0, cfg.gaussian_sd, length)
     difference = cfg.scale_f * (genomes[b] - genomes[c])
@@ -78,12 +91,18 @@ def propose_child(genomes: np.ndarray, fitness: np.ndarray, cfg: RunConfig, arm:
 
 
 def de_trial(
-    genomes: np.ndarray, target: int, scale_f: float, crossover_rate: float, streams: Streams
+    genomes: np.ndarray,
+    target: int,
+    scale_f: float,
+    crossover_rate: float,
+    streams: Streams,
 ) -> Proposal:
-    """Canonical DE/rand/1/bin trial for `target`: base and donors distinct and != target."""
+    """DE/rand/1/bin trial for `target`; base and donors are distinct from it."""
     length = genomes.shape[1]
     candidates = np.delete(np.arange(len(genomes)), target)
-    a, b, c = (int(i) for i in streams.selection.choice(candidates, size=3, replace=False))
+    a, b, c = (
+        int(i) for i in streams.selection.choice(candidates, size=3, replace=False)
+    )
     difference = scale_f * (genomes[b] - genomes[c])
     mask = binomial_mask(length, crossover_rate, streams.mask)
     trial = np.where(mask, genomes[a] + difference, genomes[target])

@@ -4,8 +4,8 @@ import multiprocessing
 import mujoco as mj
 import numpy as np
 import pytest
-from conftest import FAKE_HASHES
 
+from conftest import FAKE_HASHES
 from mutation_ab.config import RunConfig
 from mutation_ab.controller import act, genome_length, observe, unpack
 from mutation_ab.evaluate import UnstableSimulation, evaluate
