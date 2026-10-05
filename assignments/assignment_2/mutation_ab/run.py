@@ -1,3 +1,8 @@
+"""Runs the experiment: every arm on every seed, optionally in parallel.
+
+uv run python -m mutation_ab.run --out mutation_ab/results/smoke --seeds 900,901
+"""
+
 import argparse
 import multiprocessing
 import sys

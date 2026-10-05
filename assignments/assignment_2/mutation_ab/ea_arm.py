@@ -1,3 +1,7 @@
+"""The generational EA shared by the four 2x2 arms and the mixture, built on
+ariel's EA.
+"""
+
 import time
 from dataclasses import dataclass
 
@@ -123,6 +127,8 @@ def evaluate_children(population: Population, ctx: ArmContext) -> Population:
 
 
 def survive(population: Population, ctx: ArmContext) -> Population:
+    """Generational replacement with one elite: the children replace every
+    adult except the best."""
     members = by_uid(population)
     adults = [ind for ind in members if ind.tags["generation"] < ctx.generation]
     newborn = [ind for ind in members if ind.tags["generation"] == ctx.generation]

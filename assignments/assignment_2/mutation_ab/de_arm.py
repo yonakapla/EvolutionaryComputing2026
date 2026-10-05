@@ -37,6 +37,7 @@ def make_trials(
 
 
 def select_one_to_one(population: Population, ctx: ArmContext) -> Population:
+    """Each trial competes only with the adult it was made for."""
     members = by_uid(population)
     adults = {
         ind.tags["uid"]: ind

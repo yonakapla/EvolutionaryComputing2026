@@ -1,3 +1,5 @@
+"""The flat world with the robot body in it."""
+
 import hashlib
 
 import mujoco as mj
@@ -8,6 +10,7 @@ from mutation_ab.config import RunConfig
 
 
 def build_model(cfg: RunConfig) -> tuple[mj.MjModel, dict[str, str]]:
+    """The compiled MuJoCo model, and a hash of it that is stored with every run."""
     mj.set_mjcb_control(None)
     body = getattr(john_set, cfg.body, None)
     if not callable(body) or getattr(body, "__module__", None) != john_set.__name__:

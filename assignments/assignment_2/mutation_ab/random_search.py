@@ -1,3 +1,5 @@
+"""Random search with the same number of evaluations as the EA arms."""
+
 import time
 
 import numpy as np

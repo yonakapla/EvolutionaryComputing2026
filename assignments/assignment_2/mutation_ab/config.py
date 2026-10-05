@@ -1,3 +1,5 @@
+"""Every setting of a run, and which arms exist."""
+
 import hashlib
 import json
 import math

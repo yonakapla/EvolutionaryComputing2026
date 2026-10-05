@@ -1,3 +1,7 @@
+"""Helpers shared by the tests: a stand-in for the simulator and small runs
+built with it.
+"""
+
 import json
 import sys
 from pathlib import Path

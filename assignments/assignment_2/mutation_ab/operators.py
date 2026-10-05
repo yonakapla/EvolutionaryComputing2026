@@ -1,3 +1,7 @@
+"""How each arm proposes a child: parent and donor selection, the step, and
+the crossover mask.
+"""
+
 from dataclasses import dataclass
 
 import numpy as np
@@ -18,6 +22,13 @@ KIND_DE = "de"
 
 @dataclass(frozen=True)
 class Proposal:
+    """A proposed child and how it came about.
+
+    proposal_rms is the size of the step before the crossover mask, change_rms
+    the size of what the child actually changed, and difference_rms the size of
+    F(b - c), whether or not the arm used it.
+    """
+
     child: np.ndarray
     parent: int
     donors: tuple[int, ...]
@@ -39,6 +50,8 @@ def draw_donors(n: int, parent: int, rng: np.random.Generator) -> tuple[int, int
 
 
 def binomial_mask(length: int, rate: float, rng: np.random.Generator) -> np.ndarray:
+    """Which weights the child takes from the step: each with probability
+    `rate`, plus one forced weight so that the child always differs."""
     mask = rng.random(length) < rate
     mask[rng.integers(length)] = True
     return mask
@@ -118,4 +131,5 @@ def de_trial(
 
 
 def elite_index(fitness: np.ndarray, uids: np.ndarray) -> int:
+    """The best individual; ties go to the oldest, so a rerun keeps the same one."""
     return int(np.lexsort((uids, fitness))[0])

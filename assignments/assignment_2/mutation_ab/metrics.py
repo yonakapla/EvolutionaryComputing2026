@@ -1,3 +1,5 @@
+"""Step size and population diversity."""
+
 import math
 
 import numpy as np
@@ -9,6 +11,8 @@ def rms(values: np.ndarray) -> float:
 
 
 def genotype_diversity(genomes: np.ndarray) -> float:
+    """Mean pairwise distance, divided by sqrt(genome length) so that it reads
+    as a typical difference per weight."""
     return float(pdist(genomes).mean() / math.sqrt(genomes.shape[1]))
 
 

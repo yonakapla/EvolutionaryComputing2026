@@ -1,3 +1,5 @@
+"""One episode (15 s by default): how far the robot ends from the target."""
+
 from dataclasses import dataclass
 
 import mujoco as mj
@@ -29,6 +31,11 @@ class EvalResult:
 
 
 def evaluate(genome: np.ndarray, model: mj.MjModel, cfg: RunConfig) -> EvalResult:
+    """Run one episode and return the final distance to the target.
+
+    Raises UnstableSimulation if the physics diverged, rather than scoring an
+    endpoint that MuJoCo has silently reset.
+    """
     layers = unpack(
         np.asarray(genome, dtype=float), n_inputs(model), cfg.hidden_size, model.nu
     )

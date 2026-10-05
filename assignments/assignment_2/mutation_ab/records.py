@@ -78,6 +78,11 @@ def git_commit() -> dict:
 
 
 class RunRecorder:
+    """Writes one run's files as it goes, and marks it COMPLETE or FAILED.
+
+    Refuses an existing directory, so a run can never overwrite another.
+    """
+
     def __init__(
         self,
         directory: Path,

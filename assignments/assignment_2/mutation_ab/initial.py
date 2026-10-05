@@ -1,3 +1,7 @@
+"""The initial population, drawn and evaluated once per seed and shared by
+every arm.
+"""
+
 import time
 from collections.abc import Callable
 from dataclasses import dataclass

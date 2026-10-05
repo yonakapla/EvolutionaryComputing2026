@@ -1,3 +1,5 @@
+"""The neural-network controller that a genome encodes."""
+
 from dataclasses import dataclass
 
 import mujoco as mj
