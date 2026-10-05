@@ -1,5 +1,5 @@
 """Makes the tables, figures and report of one experiment, using stats.py,
-plots.py and conditions.py. See PROTOCOL.md for the design and hypotheses.
+plots.py and conditions.py. See README.md for the design and hypotheses.
 
     uv run python -m mutation_ab.analysis mutation_ab/results/final_spider
 
@@ -235,7 +235,7 @@ def report(
             f"  positive {r['positive']}/{r['n']}  p={r['p']:.4f}{holm_text}"
         )
 
-    lines.append("\nPlateau (PROTOCOL.md rule on the mean curve)")
+    lines.append("\nPlateau (rule fixed before the final run, on the mean curve)")
     for r in plateau:
         lines.append(
             f"  {NAMES[r['arm']]:20s} generation {r['plateau_generation']}  "

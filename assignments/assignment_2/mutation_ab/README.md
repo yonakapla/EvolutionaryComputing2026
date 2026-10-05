@@ -24,9 +24,6 @@ budget of 8,812 evaluations.
 | `de_rand_1_bin_matched` | canonical DE with the EA arms' F and Cr | population | reference |
 | `random` | fresh random genomes | none | baseline |
 
-The design, hypotheses and stopping rule were fixed in [`PROTOCOL.md`](PROTOCOL.md)
-before the final run; it also lists the supplementary runs added afterwards.
-
 ### Hypotheses
 
 | Hypothesis | Where the result is |
@@ -36,6 +33,37 @@ before the final run; it also lists the supplementary runs added afterwards.
 | H3 direction: (A + B)/2 − (C + D)/2 ≠ 0 | `stats.csv`, family `factorial`, tests `direction: …` and `interaction: …`; family `direction within size` |
 | H4 baseline: B and D beat random search, A and C do not | `stats.csv`, family `vs random search` |
 | References, compared descriptively | `stats.csv`, family `references (unadjusted)` |
+
+### Fixed before the final run
+
+The design, the hypotheses and the analysis below were written down and
+committed on 28 September 2026 (commit `1b14f71`), before any final-run result
+existed:
+
+- **Primary outcome:** the best-so-far distance at the end of the budget.
+- **Tests:** paired by seed, exact two-sided Wilcoxon signed-rank, Holm
+  correction within the family {H2, H3, interaction} and within the baseline
+  comparisons, bootstrap 95% intervals for the effects. The references are
+  compared descriptively.
+- **Plateau rule:** an arm has plateaued at the first generation from 40 on
+  (checked every 10) at which its mean best-so-far improved by less than 5 mm
+  over the previous 15 generations. An arm that never plateaus is compared at
+  the full budget.
+- **Failures:** a run whose simulation diverges is recorded as failed and
+  reported, never silently rerun.
+- **Seeds 1000 to 1009.** The pilots that motivated the design (the gecko in
+  OlympicArena, seeds 700–705 and 910–914; the spider on flat ground, seeds
+  910–914 and 920–924) were exploratory and are not reused.
+- **Mechanism analyses (secondary):** step size, population difference size,
+  distinct genotypes and diversity per generation; the share of clones and the
+  success rate without them; how much of each step lies in the space the
+  population spans; and the behaviour of each arm's best controller (path,
+  speed, falls), which is not part of this code.
+
+The supplementary runs were added on 29 September, after seeing the final
+results, and are reported as checks rather than tests of these hypotheses.
+Canonical DE was added to `supp_long` before that run started, because it was
+still improving at 800 generations and was the best arm in the final run.
 
 ### The 2×2 on one step
 
@@ -78,7 +106,6 @@ uv run pytest mutation_ab/tests
 | File | What it does |
 |---|---|
 | `A2_template_2026.py`, `Assignment2.html` (one folder up) | Course template and assignment text (reference only) |
-| `PROTOCOL.md` | The design and hypotheses, written before the final run |
 | `config.py` | Every setting of a run, and the names of the arms |
 | `world.py` | The flat world with the robot in it |
 | `controller.py` | The neural network a genome encodes |
@@ -135,8 +162,8 @@ an SVD and depends on the machine's linear algebra library.
 
 ### Supplementary runs
 
-Added after the final run (see the addendum in `PROTOCOL.md`). They use the same
-setup apart from the change listed.
+Added after the final run, as checks rather than tests of the hypotheses. They
+use the same setup apart from the change listed.
 
 | Run | Arms | Change | Seeds | Question |
 |---|---|---|---|---|
@@ -218,7 +245,7 @@ analysis_results/final_spider/
 | `report.txt` | All results below in readable form | yes |
 | `summary.csv`, `per_seed.csv` | Final distance, collapse and step statistics, per arm and per run | yes |
 | `stats.csv` | One row per hypothesis test | yes |
-| `plateau.csv` | The plateau rule of `PROTOCOL.md` on each arm's mean curve | yes |
+| `plateau.csv` | The plateau rule on each arm's mean curve | yes |
 | `step_span.csv`, `step_shape.csv` | Step direction and shape (see the columns below) | yes |
 | `replay.csv` | Recorded and replayed distance of each run's best controller | yes |
 | `fig_*.pdf`, `fig_*.png` | The three report figures. PDF for LaTeX, PNG for quick viewing | yes |
@@ -307,9 +334,6 @@ uv run ruff format --config mutation_ab/lint.toml mutation_ab
 - **Canonical DE spends 12 evaluations per generation, the EA arms 11.** DE
   runs 733 generations (8,808 evaluations) and is plotted at the EA generation
   with the same number of evaluations.
-- **The plateau rule was fixed in advance:** the first generation from 40 on
-  (checked every 10) at which the mean best-so-far improved by less than 5 mm
-  over the previous 15 generations.
 - **Steps are logged every 10th generation** to keep `steps.npz` small.
 - **A diverged simulation fails its run and is never rerun silently.** MuJoCo
   resets a diverged state without error, which would otherwise look like a

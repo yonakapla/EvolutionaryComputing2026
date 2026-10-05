@@ -1,4 +1,4 @@
-"""The hypothesis tests and the plateau rule of PROTOCOL.md.
+"""The hypothesis tests and the plateau rule, both fixed before the final run.
 
 Every test is paired by seed: all arms start from the same initial population,
 so the difference between two arms is taken per seed and tested against zero.

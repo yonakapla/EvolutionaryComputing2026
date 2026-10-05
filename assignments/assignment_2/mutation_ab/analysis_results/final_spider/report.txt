@@ -26,7 +26,7 @@ Tests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstra
   [references (unadjusted)] DE matched - Random search: -0.498 m [-0.598, -0.389]  positive 0/10  p=0.0020
   [references (unadjusted)] DE (0.5, 0.9) - DE matched: -0.412 m [-0.572, -0.240]  positive 1/10  p=0.0059
 
-Plateau (PROTOCOL.md rule on the mean curve)
+Plateau (rule fixed before the final run, on the mean curve)
   A difference         generation 40  gain last 50 gens 0.0000 m
   C size-matched       generation 70  gain last 50 gens 0.0000 m
   B normalised         generation 350  gain last 50 gens 0.0082 m

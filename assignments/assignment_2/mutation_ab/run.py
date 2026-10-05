@@ -105,7 +105,7 @@ def run_seed(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Step size x step direction experiment (see PROTOCOL.md)"
+        description="Step size x step direction experiment (see README.md)"
     )
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--seeds", required=True, help="e.g. 700-705 or 800,801")

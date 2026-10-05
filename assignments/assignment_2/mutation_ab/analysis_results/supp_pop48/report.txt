@@ -4,7 +4,7 @@ Final best distance to target (m), mean ± sd over seeds
 
 Tests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstrap CI)
 
-Plateau (PROTOCOL.md rule on the mean curve)
+Plateau (rule fixed before the final run, on the mean curve)
   A difference         generation 90  gain last 50 gens 0.0031 m
   D Gaussian           generation None  gain last 50 gens 0.0644 m
 

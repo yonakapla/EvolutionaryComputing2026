@@ -1,4 +1,4 @@
-"""The fixed setup of PROTOCOL.md: budgets, step sizes and per-arm settings."""
+"""The fixed setup of the experiment: budgets, step sizes and per-arm settings."""
 
 import numpy as np
 import pytest
