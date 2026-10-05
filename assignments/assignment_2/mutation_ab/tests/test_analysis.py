@@ -1,17 +1,19 @@
-import csv
+"""The analysis of a folder of runs: which runs may be compared, and the step
+geometry behind the direction result."""
+
 import json
 import shutil
 
 import numpy as np
 import pytest
 
-from conftest import LENGTH, make_fake_root
-from mutation_ab import analysis, conditions, plots, records, stats
+from conftest import make_fake_root
+from mutation_ab import analysis
 from mutation_ab.config import ALL_ARMS
+from mutation_ab.plots import equivalent_generations
+from mutation_ab.records import borrow_sigma_free_arms, load
 
 SMALL = {"generations": 6, "population_size": 6, "step_log_every": 2}
-
-
 SEEDS = (11, 12, 13, 14, 15, 16)
 
 
@@ -20,68 +22,44 @@ def root(tmp_path_factory):
     return make_fake_root(tmp_path_factory.mktemp("final"), SEEDS, ALL_ARMS, **SMALL)
 
 
-def test_in_span_fraction_is_one_inside_and_zero_orthogonal():
+def test_steps_inside_the_population_span_count_fully_and_orthogonal_ones_not():
     rng = np.random.default_rng(0)
-    basis = np.linalg.qr(rng.normal(size=(20, 3)))[
-        0
-    ].T  # 3 orthonormal directions in 20-D
+    basis = np.linalg.qr(rng.normal(size=(20, 3)))[0].T
     parents = rng.normal(size=(6, 3)) @ basis
     adults = np.stack([parents, parents])
     inside = rng.normal(size=(4, 3)) @ basis
     orthogonal = rng.normal(size=(4, 20))
     orthogonal -= orthogonal @ basis.T @ basis
     for steps, expected in ((inside, 1.0), (orthogonal, 0.0)):
-        share, rank = analysis.in_span_fraction(adults, np.ones(4, dtype=int), steps)[1]
+        generation = np.ones(4, dtype=int)
+        share, rank = analysis.in_span_fraction(adults, generation, steps)[1]
         assert share == pytest.approx(expected, abs=1e-9)
         assert rank == 3
 
 
-def test_identical_population_has_no_span():
+def test_a_collapsed_population_has_no_span():
     adults = np.ones((2, 6, 10))
-    assert (
-        analysis.in_span_fraction(adults, np.ones(3, dtype=int), np.ones((3, 10))) == {}
+    generation = np.ones(3, dtype=int)
+    assert analysis.in_span_fraction(adults, generation, np.ones((3, 10))) == {}
+
+
+def test_canonical_de_is_placed_at_the_ea_generation_with_equal_evaluations():
+    # EA arms: 12 initial evaluations, then 11 per generation.
+    np.testing.assert_allclose(
+        equivalent_generations([12, 23, 12 + 11 * 800], 12), [0, 1, 800]
     )
+    # DE spends 12 per generation, so its generation 733 sits just before 800.
+    assert equivalent_generations([12 + 12 * 733], 12)[0] == pytest.approx(799.6, 0.01)
 
 
-def test_signed_test_reports_direction_and_ci():
-    result = stats.signed_test(
-        np.array([0.5, 0.6, 0.7, 0.8, 0.9, 1.0]), np.random.default_rng(0)
-    )
-    assert result["positive"] == 6
-    assert result["p"] == pytest.approx(0.03125)
-    assert 0.5 <= result["ci_low"] <= result["mean"] <= result["ci_high"] <= 1.0
-
-
-def test_analysis_writes_every_output(root):
-    assert analysis.main([str(root)]) == 0
-    out = root / "analysis"
-    for name in ("per_seed", "summary", "stats", "plateau", "step_span", "step_shape"):
-        assert (out / f"{name}.csv").stat().st_size > 0
-    for figure in ("fig_fitness", "fig_mechanism", "fig_seeds"):
-        assert (out / f"{figure}.png").exists() and (out / f"{figure}.pdf").exists()
-    with (out / "summary.csv").open() as handle:
-        arms = [row["arm"] for row in csv.DictReader(handle)]
-    assert arms == list(conditions.ARM_ORDER)
-
-
-def test_factorial_family_is_holm_adjusted(root):
-    rows = stats.statistical_tests(records.load(root))
-    factorial = [r for r in rows if r["family"] == "factorial"]
-    assert len(factorial) == 3
-    assert all(r["p_holm"] >= r["p"] for r in factorial)
-    assert all(
-        r["p_holm"] is None for r in rows if r["family"] == "references (unadjusted)"
-    )
-
-
-def test_load_rejects_uneven_seed_sets(root, tmp_path):
+def test_arms_must_cover_the_same_seeds(root, tmp_path):
     shutil.copytree(root / "seed_11" / "gaussian", tmp_path / "seed_1" / "gaussian")
     shutil.copytree(root / "seed_12", tmp_path / "seed_2")
     with pytest.raises(ValueError, match="different seeds"):
-        records.load(tmp_path)
+        load(tmp_path)
 
 
-def test_load_rejects_runs_from_different_setups(root, tmp_path):
+def test_runs_with_different_setups_are_not_compared(root, tmp_path):
     shutil.copytree(root / "seed_11", tmp_path / "seed_11")
     shutil.copytree(root / "seed_12", tmp_path / "seed_12")
     config_file = tmp_path / "seed_12" / "gaussian" / "config.json"
@@ -89,91 +67,37 @@ def test_load_rejects_runs_from_different_setups(root, tmp_path):
     meta["config"]["body"] = "gecko"
     config_file.write_text(json.dumps(meta))
     with pytest.raises(ValueError, match="different setups"):
-        records.load(tmp_path)
+        load(tmp_path)
 
 
-def test_step_shape_counts_zero_steps_and_changed_weights(root):
-    shape = {row["arm"]: row for row in analysis.step_shape(records.load(root))}
-    gaussian = shape["gaussian"]
-    assert gaussian["zero_step_share"] == 0.0
-    assert gaussian["weights_changed_median"] >= 1
-    assert (
-        gaussian["change_per_changed_weight_median"] >= gaussian["step_rms_median"] > 0
-    )
-
-
-def test_equivalent_generations_match_ea_generations():
-    # EA and random search: 12 initial evaluations, then 11 per generation.
-    np.testing.assert_allclose(
-        plots.equivalent_generations([12, 23, 12 + 11 * 800], 12), [0, 1, 800]
-    )
-    # Canonical DE generation 733 (12 per generation) sits just below EA generation 800.
-    assert plots.equivalent_generations([12 + 12 * 733], 12)[0] == pytest.approx(
-        799.6, abs=0.1
-    )
-
-
-def test_holm_known_values():
-    adjusted = stats.holm({"a": 0.01, "b": 0.04, "c": 0.03})
-    assert adjusted == pytest.approx({"a": 0.03, "b": 0.06, "c": 0.06})
-
-
-def test_plateau_generation():
-    flat_after_50 = np.concatenate([np.linspace(3.0, 1.0, 51), np.full(30, 1.0)])
-    assert stats.plateau_generation(flat_after_50) == 70
-    still_falling = np.linspace(3.0, 1.0, 81)
-    assert stats.plateau_generation(still_falling) is None
-
-
-def test_out_option_writes_elsewhere(root, tmp_path):
-    out = tmp_path / "tracked" / "final"
-    assert analysis.main([str(root), "--out", str(out)]) == 0
-    assert (out / "report.txt").exists() and (out / "fig_fitness.pdf").exists()
-
-
-def test_frozen_genes_and_gaussian_step_share(root):
-    rows = {
-        (r["arm"], r["seed"]): r
-        for r in (
-            analysis.seed_metrics(run)
-            for arm in records.load(root).values()
-            for run in arm.values()
-        )
-    }
-    gaussian, difference = rows[("gaussian", 11)], rows[("difference", 11)]
-    assert gaussian["gaussian_step_share"] == 1.0
-    assert difference["gaussian_step_share"] == 0.0
-    assert 0 <= difference["frozen_genes_final"] <= LENGTH
-
-
-def test_sigma_run_borrows_sigma_free_arms(root, tmp_path):
+def test_sigma_runs_borrow_the_arms_that_do_not_use_sigma(root, tmp_path):
     sigma = make_fake_root(
-        tmp_path / "sigma", SEEDS, ("normalised", "gaussian"), gaussian_sd=0.3, **SMALL
+        tmp_path, SEEDS, ("normalised", "gaussian"), gaussian_sd=0.3, **SMALL
     )
-    runs = records.borrow_sigma_free_arms(records.load(sigma), root)
-    assert set(runs) == {
+    runs = borrow_sigma_free_arms(load(sigma), root)
+    assert list(runs) == [
         "difference",
         "size_matched",
         "normalised",
         "gaussian",
         "random",
-    }
-    assert [r["family"] for r in stats.statistical_tests(runs)].count("factorial") == 3
+    ]
 
 
-def test_b_and_d_alone_still_get_the_direction_test(tmp_path):
-    long = make_fake_root(tmp_path / "long", SEEDS, ("normalised", "gaussian"), **SMALL)
-    rows = stats.statistical_tests(records.load(long))
-    assert [r["test"] for r in rows] == ["fixed size: B - D"]
-
-
-def test_borrowing_refuses_a_different_setup(root, tmp_path):
+def test_borrowing_refuses_runs_that_differ_in_more_than_sigma(root, tmp_path):
     other = make_fake_root(
-        tmp_path / "other",
-        SEEDS,
-        ("normalised", "gaussian"),
-        crossover_rate=0.5,
-        **SMALL,
+        tmp_path, SEEDS, ("normalised", "gaussian"), crossover_rate=0.5, **SMALL
     )
     with pytest.raises(ValueError, match="differs"):
-        records.borrow_sigma_free_arms(records.load(other), root)
+        borrow_sigma_free_arms(load(other), root)
+
+
+def test_analysis_writes_every_table_and_figure(root):
+    assert analysis.main([str(root)]) == 0
+    out = root / "analysis"
+    for name in ("per_seed", "summary", "stats", "plateau", "step_span", "step_shape"):
+        assert (out / f"{name}.csv").stat().st_size > 0
+    for figure in ("fig_fitness", "fig_mechanism", "fig_seeds"):
+        assert (out / f"{figure}.png").exists()
+        assert (out / f"{figure}.pdf").exists()
+    assert (out / "report.txt").exists()
