@@ -9,11 +9,10 @@ from pathlib import Path
 
 import numpy as np
 
-from mutation_ab.analysis import Run, load, write_csv
 from mutation_ab.config import FACTORIAL_ARMS, RunConfig
 from mutation_ab.controller import genome_length, n_inputs
 from mutation_ab.evaluate import evaluate
-from mutation_ab.records import genome_sha1
+from mutation_ab.records import Run, genome_sha1, load, write_csv
 from mutation_ab.streams import make_streams
 from mutation_ab.world import build_model
 
