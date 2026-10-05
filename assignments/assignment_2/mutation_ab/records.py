@@ -4,7 +4,6 @@ import csv
 import hashlib
 import json
 import platform
-import subprocess
 import time
 import traceback
 from dataclasses import dataclass
@@ -14,8 +13,13 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from mutation_ab.conditions import ARM_ORDER
-from mutation_ab.config import ARM_DIFFERENCE, ARM_RANDOM, ARM_SIZE_MATCHED, RunConfig
+from mutation_ab.config import (
+    ARM_DIFFERENCE,
+    ARM_ORDER,
+    ARM_RANDOM,
+    ARM_SIZE_MATCHED,
+    RunConfig,
+)
 
 GENERATION_FIELDS = (
     "generation",
@@ -66,38 +70,18 @@ def evaluation_record(
     }
 
 
-def git_commit() -> dict:
-    here = Path(__file__).resolve().parent
-    commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=here, capture_output=True, text=True
-    ).stdout.strip()
-    status = subprocess.run(
-        ["git", "status", "--porcelain"], cwd=here, capture_output=True, text=True
-    ).stdout
-    return {"commit": commit, "dirty": bool(status.strip())}
-
-
 class RunRecorder:
     """Writes one run's files as it goes, and marks it COMPLETE or FAILED.
 
     Refuses an existing directory, so a run can never overwrite another.
     """
 
-    def __init__(
-        self,
-        directory: Path,
-        cfg: RunConfig,
-        arm: str,
-        hashes: dict[str, str],
-    ) -> None:
+    def __init__(self, directory: Path, cfg: RunConfig, arm: str) -> None:
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=False)
         meta = {
             "arm": arm,
             "config": cfg.to_dict(),
-            "config_hash": cfg.config_hash(),
-            "hashes": hashes,
-            "git": git_commit(),
             "versions": {
                 "python": platform.python_version(),
                 "mujoco": mujoco.__version__,
@@ -201,10 +185,7 @@ def load(root: Path) -> dict[str, dict[int, Run]]:
                 continue
             meta = json.loads((arm_dir / "config.json").read_text())
             setup = json.dumps(
-                {
-                    "config": {k: v for k, v in meta["config"].items() if k != "seed"},
-                    "hashes": meta["hashes"],
-                },
+                {k: v for k, v in meta["config"].items() if k != "seed"},
                 sort_keys=True,
             )
             setups.setdefault(setup, []).append(str(arm_dir))
@@ -231,6 +212,12 @@ def load(root: Path) -> dict[str, dict[int, Run]]:
     return {arm: runs[arm] for arm in ARM_ORDER if arm in runs}
 
 
+def first_run(runs: dict[str, dict[int, Run]]) -> Run:
+    """Any one run; after load() they all share one setup."""
+    by_seed = next(iter(runs.values()))
+    return next(iter(by_seed.values()))
+
+
 SIGMA_FREE_ARMS = (ARM_DIFFERENCE, ARM_SIZE_MATCHED, ARM_RANDOM)
 
 
@@ -242,7 +229,7 @@ def borrow_sigma_free_arms(runs, reference_root: Path) -> dict[str, dict[int, Ru
     """
     reference = load(reference_root)
     seeds = sorted(next(iter(runs.values())))
-    own = next(iter(next(iter(runs.values())).values())).config
+    own = first_run(runs).config
     for arm in SIGMA_FREE_ARMS:
         borrowed = {seed: reference[arm][seed] for seed in seeds}
         for run in borrowed.values():

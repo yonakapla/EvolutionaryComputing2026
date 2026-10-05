@@ -13,17 +13,17 @@ from pathlib import Path
 
 from ariel.ec import set_seed
 
-from mutation_ab.config import ALL_ARMS, ARM_RANDOM, DE_ARMS, RunConfig
-from mutation_ab.controller import genome_length, n_inputs
-from mutation_ab.de_arm import run_de
-from mutation_ab.ea_arm import run_ea
-from mutation_ab.evaluate import UnstableSimulation, evaluate
-from mutation_ab.initial import Evaluator, InitialPopulation, make_initial
-from mutation_ab.progress import Heartbeat
+from mutation_ab.config import ALL_ARMS, ARM_RANDOM, DE_ARMS, RunConfig, make_streams
+from mutation_ab.ea import Evaluator, InitialPopulation, make_initial, run_de, run_ea
 from mutation_ab.random_search import run_random
 from mutation_ab.records import RunRecorder
-from mutation_ab.streams import make_streams
-from mutation_ab.world import build_model
+from mutation_ab.simulation import (
+    UnstableSimulation,
+    build_model,
+    evaluate,
+    genome_length,
+    n_inputs,
+)
 
 
 def parse_seeds(text: str) -> list[int]:
@@ -77,7 +77,7 @@ def run_seed(
     """
     cfg = RunConfig(seed=seed, **overrides)
     set_seed(seed)
-    model, hashes = build_model(cfg)
+    model = build_model(cfg)
     evaluator = partial(evaluate, model=model, cfg=cfg)
     length = genome_length(n_inputs(model), cfg.hidden_size, model.nu)
     seed_dir = out_root / f"seed_{seed}"
@@ -86,12 +86,12 @@ def run_seed(
         initial = make_initial(cfg, make_streams(seed), evaluator, length)
     except UnstableSimulation as error:
         for arm in arms:
-            RunRecorder(seed_dir / arm, cfg, arm, hashes).fail(error)
+            RunRecorder(seed_dir / arm, cfg, arm).fail(error)
             status[arm] = "failed"
         return status
 
     for arm in arms:
-        recorder = RunRecorder(seed_dir / arm, cfg, arm, hashes)
+        recorder = RunRecorder(seed_dir / arm, cfg, arm)
         try:
             summary = run_one(cfg, arm, initial, evaluator, recorder)
         except UnstableSimulation as error:
@@ -130,12 +130,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Gaussian step SD, also the normalised arm's fixed step size "
         "(F stays tied to 0.15)",
     )
-    parser.add_argument(
-        "--heartbeat",
-        type=float,
-        default=60.0,
-        help="seconds between progress lines; 0 disables",
-    )
     args = parser.parse_args(argv)
 
     try:
@@ -154,7 +148,6 @@ def main(argv: list[str] | None = None) -> int:
         "gaussian_sd": args.gaussian_sd,
     }
     reference = RunConfig(seed=0, **overrides)
-    budgets = {arm: reference.budget_for(arm) for arm in arms}
     args.out.mkdir(parents=True, exist_ok=True)
     print(
         f"{len(seeds)} seeds x {len(arms)} arms, {reference.budget} evaluations "
@@ -162,23 +155,16 @@ def main(argv: list[str] | None = None) -> int:
         flush=True,
     )
 
-    with Heartbeat(args.out, seeds, arms, budgets, args.heartbeat):
-        if args.workers == 1:
-            results = [run_seed(seed, args.out, overrides, arms) for seed in seeds]
-        else:
-            context = multiprocessing.get_context("spawn")
-            with ProcessPoolExecutor(
-                max_workers=args.workers, mp_context=context
-            ) as pool:
-                results = list(
-                    pool.map(
-                        run_seed,
-                        seeds,
-                        repeat(args.out),
-                        repeat(overrides),
-                        repeat(arms),
-                    )
+    if args.workers == 1:
+        results = [run_seed(seed, args.out, overrides, arms) for seed in seeds]
+    else:
+        context = multiprocessing.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=args.workers, mp_context=context) as pool:
+            results = list(
+                pool.map(
+                    run_seed, seeds, repeat(args.out), repeat(overrides), repeat(arms)
                 )
+            )
 
     failed = [
         f"{arm} seed {seed}"

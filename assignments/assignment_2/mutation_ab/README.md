@@ -1,9 +1,8 @@
 # Assignment 2: step size × step direction in small-population neuroevolution
 
-**Research question.** Why does population-difference (DE-style) mutation
-underperform Gaussian mutation in small-population neuroevolution for targeted
-locomotion, and how much of the gap is due to its step size versus its step
-direction?
+**Research question.** How much of the performance gap between
+population-difference and Gaussian mutation in a small-population
+neuroevolutionary EA is due to step size, and how much to step direction?
 
 A population of 12 controllers for the `spider_8` body learns to walk to a
 target 2 m away. Four arms form a 2×2: the step either follows the population
@@ -19,51 +18,35 @@ budget of 8,812 evaluations.
 | B `normalised` | population, F(b − c) | fixed, RMS 0.15 | |
 | C `size_matched` | random | the size of F(b − c) | |
 | D `gaussian` | random | fixed, SD 0.15 | Gaussian mutation |
-| `mixture` | 90% F(b − c), 10% Gaussian | mixed | reference: the original A/B treatment |
-| `de_rand_1_bin` | canonical DE, F = 0.5, Cr = 0.9 | population | reference |
-| `de_rand_1_bin_matched` | canonical DE with the EA arms' F and Cr | population | reference |
+| `mixture` | 90% F(b − c), 10% Gaussian | mixed | reference: does occasional injected variation prevent collapse? |
+| `de_rand_1_bin` | canonical DE, F = 0.5, Cr = 0.9 | population | reference: DE (0.5, 0.9) |
+| `de_rand_1_bin_matched` | canonical DE with the EA arms' F and Cr | population | reference: DE matched |
 | `random` | fresh random genomes | none | baseline |
 
-### Hypotheses
+Over ten paired seeds, fixing the step size brings the robot 0.96 m closer to
+the target (95% interval 0.78 to 1.15 m, better in every seed), while no effect
+of the direction source is detected (−0.05 m, interval −0.17 to +0.06 m). All
+numbers are in `analysis_results/final_spider/report.txt`.
 
-| Hypothesis | Where the result is |
-|---|---|
-| H1 mechanism: A and C collapse to a single genome and stop moving; B and D never do | `summary.csv`, columns `collapsed_seeds` and `collapse_generation_range`; `fig_mechanism` |
-| H2 size (primary): (A + C)/2 − (B + D)/2 > 0 | `stats.csv`, family `factorial`, test `size: …` |
-| H3 direction: (A + B)/2 − (C + D)/2 ≠ 0 | `stats.csv`, family `factorial`, tests `direction: …` and `interaction: …`; family `direction within size` |
-| H4 baseline: B and D beat random search, A and C do not | `stats.csv`, family `vs random search` |
-| References, compared descriptively | `stats.csv`, family `references (unadjusted)` |
+Run all commands from **`assignments/assignment_2`**.
 
-### Fixed before the final run
+## Reading the code
 
-The design, the hypotheses and the analysis below were written down and
-committed on 28 September 2026 (commit `1b14f71`), before any final-run result
-existed:
+The experiment itself is in four files; read them in this order:
 
-- **Primary outcome:** the best-so-far distance at the end of the budget.
-- **Tests:** paired by seed, exact two-sided Wilcoxon signed-rank, Holm
-  correction within the family {H2, H3, interaction} and within the baseline
-  comparisons, bootstrap 95% intervals for the effects. The references are
-  compared descriptively.
-- **Plateau rule:** an arm has plateaued at the first generation from 40 on
-  (checked every 10) at which its mean best-so-far improved by less than 5 mm
-  over the previous 15 generations. An arm that never plateaus is compared at
-  the full budget.
-- **Failures:** a run whose simulation diverges is recorded as failed and
-  reported, never silently rerun.
-- **Seeds 1000 to 1009.** The pilots that motivated the design (the gecko in
-  OlympicArena, seeds 700–705 and 910–914; the spider on flat ground, seeds
-  910–914 and 920–924) were exploratory and are not reused.
-- **Mechanism analyses (secondary):** step size, population difference size,
-  distinct genotypes and diversity per generation; the share of clones and the
-  success rate without them; how much of each step lies in the space the
-  population spans; and the behaviour of each arm's best controller (path,
-  speed, falls), which is not part of this code.
+1. `config.py`: the arms, every setting of a run (`RunConfig`), and the
+   separate random-number stream for each kind of random choice.
+2. `operators.py`: how a child is made: tournament parent, two donors, the
+   arm's step (`shaped_step`), and the crossover mask. The whole 2×2 lives in
+   `shaped_step` and `propose_child`.
+3. `ea.py`: the shared initial population, the generational EA with one elite
+   (`run_ea`), and canonical DE (`run_de`), both built on `ariel.ec.EA`.
+4. `simulation.py`: the robot in its world, the controller a genome encodes,
+   and the episode that scores it.
 
-The supplementary runs were added on 29 September, after seeing the final
-results, and are reported as checks rather than tests of these hypotheses.
-Canonical DE was added to `supp_long` before that run started, because it was
-still improving at 800 generations and was the best arm in the final run.
+The rest runs the experiment (`run.py`, `random_search.py`, `records.py`) or
+analyses it (`analysis.py`, `stats.py`, `plots.py`, `conditions.py`,
+`replay.py`, `metrics.py`).
 
 ### The 2×2 on one step
 
@@ -82,7 +65,29 @@ and C stop moving for good, while B and D keep taking steps of 0.15. (B then
 has no direction to keep and falls back to the Gaussian draw.)
 `tests/test_steps.py` checks exactly these numbers.
 
-Run all commands from **`assignments/assignment_2`**.
+### Where each part of the report comes from
+
+| Report | Code | Output |
+|---|---|---|
+| Sect. 2.1, task, controller and fitness | `simulation.py` | |
+| Sect. 2.2, parent, donors, mask and the proposal rules of Table 1 | `operators.py`: `propose_child`, `shaped_step`, `binomial_mask` | |
+| Sect. 2.2, generational EA with one elite | `ea.py`: `reproduce`, `survive`, `run_ea` | |
+| Sect. 2.2, reference conditions | canonical DE: `ea.run_de`, `operators.de_trial`; mixture: `RunConfig.replacement_probability_for`; random search: `random_search.py` | |
+| Table 2, parameter settings | `config.RunConfig` | `config.json` of each run |
+| Sect. 2.4, paired runs and failed runs | `ea.make_initial`, `config.make_streams`, `simulation.UnstableSimulation`, `RunRecorder.fail` | `FAILED.json` (none occurred) |
+| Sect. 2.4, plateau rule | `stats.plateau_generation` | `plateau.csv` |
+| Sect. 2.4, clones, success and realised steps | `analysis.seed_metrics`, `analysis.step_shape` | `per_seed.csv`, `summary.csv`, `step_shape.csv` |
+| Sect. 2.4, contrasts S, Q, I, Holm correction and bootstrap intervals | `stats.statistical_tests` | `stats.csv` |
+| Figure 1 | `plots.fig_fitness` | `fig_fitness` |
+| Figure 2 | `plots.fig_mechanism` | `fig_mechanism` |
+| Table 3 | `analysis.summary_rows`, `stats.plateaus` | `summary.csv`, `plateau.csv` |
+| Table 4 | `stats.statistical_tests` | `stats.csv` |
+| Sect. 3.5, population 48 and twice the budget | `run.py` options | `analysis_results/supp_pop48/`, `analysis_results/supp_long/` |
+| Sect. 3.6, step scale σ = 0.05 and 0.3 | `run.py --gaussian-sd`, `analysis.py --sigma-free-arms-from` | `analysis_results/supp_sigma_*/` |
+| Sect. 2.4 and 3.6, replays | `replay.py` | `replay.csv` |
+
+The outputs are in `analysis_results/final_spider/` unless named otherwise.
+`fig_seeds` and `step_span.csv` are not used in the report.
 
 ## Setup
 
@@ -106,27 +111,21 @@ uv run pytest mutation_ab/tests
 | File | What it does |
 |---|---|
 | `A2_template_2026.py`, `Assignment2.html` (one folder up) | Course template and assignment text (reference only) |
-| `config.py` | Every setting of a run, and the names of the arms |
-| `world.py` | The flat world with the robot in it |
-| `controller.py` | The neural network a genome encodes |
-| `evaluate.py` | One episode: the final distance to the target |
-| `streams.py` | Separate random-number streams for each kind of random choice |
-| `initial.py` | The initial population, shared by every arm of a seed |
+| `config.py` | The arms, every setting of a run, and the random-number streams |
 | `operators.py` | Parent and donor selection, the step of each arm, the crossover mask |
-| `ea_arm.py` | The EA of the 2×2 arms and the mixture, built on `ariel.ec.EA` |
-| `de_arm.py` | Canonical DE/rand/1/bin, built on the same pieces |
+| `ea.py` | The initial population, the EA of the 2×2 arms and the mixture, and canonical DE/rand/1/bin, built on `ariel.ec.EA` |
+| `simulation.py` | The world with the robot in it, the neural network a genome encodes, and one episode |
 | `random_search.py` | Random search with the same number of evaluations |
 | `metrics.py` | Step size and population diversity |
 | `records.py` | Writing the result files, and reading a folder of runs back |
 | `run.py` | Runs every arm on every seed, optionally in parallel |
-| `progress.py` | The progress line printed during long runs |
 | `analysis.py` | Makes the tables, figures and report, using the three files below |
-| `conditions.py` | Order, names, colours and line styles of the arms |
+| `conditions.py` | Names, colours and line styles of the arms, and which arms the figures show |
 | `stats.py` | The hypothesis tests and the plateau rule |
 | `plots.py` | The three figures |
 | `replay.py` | Replays each run's best controller and compares the distance |
 | `analysis_results/` | The analysis of each experiment, in git |
-| `tests/` | 42 tests for the code above |
+| `tests/` | 42 tests (49 with their parameter cases) for the code above |
 | `lint.toml` | Ruff settings for this folder (see below) |
 
 ## Reproducing the results
@@ -134,6 +133,26 @@ uv run pytest mutation_ab/tests
 The raw runs take about 400 MB per experiment and stay out of git (`results/` is
 ignored). What git holds is each experiment's analysis in
 `analysis_results/<experiment>/`.
+
+### A short run on its own
+
+Give test runs their own output folder so they never mix with the final
+results. This takes a few seconds:
+
+```bash
+uv run python -m mutation_ab.run --out mutation_ab/results/smoke --seeds 900,901 --arms difference,gaussian,random --generations 2 --population 4 --duration 0.2
+uv run python -m mutation_ab.analysis mutation_ab/results/smoke
+```
+
+The run prints one line per finished run:
+
+```
+2 seeds x 3 arms, 10 evaluations per run, 1 worker(s) -> mutation_ab/results/smoke
+difference seed 900: best 1.990 m (0s)
+gaussian seed 900: best 1.991 m (0s)
+...
+6 runs complete, 0 failed
+```
 
 ### Everything, from scratch
 
@@ -190,33 +209,54 @@ uv run python -m mutation_ab.analysis mutation_ab/results/supp_sigma_0.3 --out m
 The first 800 generations of `supp_long` are identical to `final_spider`,
 because both use the same seeds.
 
-### A short run on its own
-
-Give test runs their own output folder so they never mix with the final
-results. This takes a few seconds:
-
-```bash
-uv run python -m mutation_ab.run --out mutation_ab/results/smoke --seeds 900,901 --arms difference,gaussian,random --generations 2 --population 4 --duration 0.2
-uv run python -m mutation_ab.analysis mutation_ab/results/smoke
-```
-
-The run prints one line per finished run and an overall progress line every
-60 seconds:
-
-```
-2 seeds x 3 arms, 10 evaluations per run, 1 worker(s) -> mutation_ab/results/smoke
-difference seed 900: best 1.990 m (0s)
-gaussian seed 900: best 1.991 m (0s)
-...
-11:30:35  100% of 60 evaluations, 6/6 runs done, ETA 11:30
-6 runs complete, 0 failed
-```
-
 | Script | Options |
 |---|---|
-| `run` | `--out` (required, must not exist yet), `--seeds` (required, e.g. `1000-1009` or `900,901`), `--arms` (default all eight), `--generations 800`, `--population 12`, `--duration 15`, `--body spider_8`, `--gaussian-sd 0.15`, `--workers 1`, `--heartbeat 60` (seconds, `0` turns it off) |
+| `run` | `--out` (required, must not exist yet), `--seeds` (required, e.g. `1000-1009` or `900,901`), `--arms` (default all eight), `--generations 800`, `--population 12`, `--duration 15`, `--body spider_8`, `--gaussian-sd 0.15`, `--workers 1` |
 | `analysis` | the results folder, `--out` (default `<folder>/analysis`), `--sigma-free-arms-from` |
 | `replay` | the results folder, `--out` |
+
+## The protocol
+
+### Hypotheses
+
+| Hypothesis | Where the result is |
+|---|---|
+| H1 mechanism: A and C collapse to a single genome and stop moving; B and D never do | `summary.csv`, columns `collapsed_seeds` and `collapse_generation_range`; `fig_mechanism` |
+| H2 size (primary): (A + C)/2 − (B + D)/2 > 0 | `stats.csv`, family `factorial`, test `size: …` |
+| H3 direction: (A + B)/2 − (C + D)/2 ≠ 0 | `stats.csv`, family `factorial`, tests `direction: …` and `interaction: …`; family `direction within size` |
+| H4 baseline: B and D beat random search, A and C do not | `stats.csv`, family `vs random search` |
+| References, compared descriptively | `stats.csv`, family `references (unadjusted)` |
+
+### Fixed before the final run
+
+The design, the hypotheses and the analysis below were written down and
+committed on 28 September 2026 (commit `1b14f71`), before any final-run result
+existed:
+
+- **Primary outcome:** the best-so-far distance at the end of the budget.
+- **Tests:** paired by seed, exact two-sided Wilcoxon signed-rank, Holm
+  correction within the family {H2, H3, interaction} and within the baseline
+  comparisons, bootstrap 95% intervals for the effects. The references are
+  compared descriptively.
+- **Plateau rule:** an arm has plateaued at the first generation from 40 on
+  (checked every 10) at which its mean best-so-far improved by less than 5 mm
+  over the previous 15 generations. An arm that never plateaus is compared at
+  the full budget.
+- **Failures:** a run whose simulation diverges is recorded as failed and
+  reported, never silently rerun.
+- **Seeds 1000 to 1009.** The pilots that motivated the design (the gecko in
+  OlympicArena, seeds 700–705 and 910–914; the spider on flat ground, seeds
+  910–914 and 920–924) were exploratory and are not reused.
+- **Mechanism analyses (secondary):** step size, population difference size,
+  distinct genotypes and diversity per generation; the share of clones and the
+  success rate without them; how much of each step lies in the space the
+  population spans; and the behaviour of each arm's best controller (path,
+  speed, falls), which is not part of this code.
+
+The supplementary runs were added on 29 September, after seeing the final
+results, and are reported as checks rather than tests of these hypotheses.
+Canonical DE was added to `supp_long` before that run started, because it was
+still improving at 800 generations and was the best arm in the final run.
 
 ## What each result file contains
 
@@ -234,7 +274,7 @@ analysis_results/final_spider/
 
 | File | Contents | In git |
 |---|---|---|
-| `config.json` | Every setting of the run, a hash of them, a hash of the MuJoCo model, the git commit and whether the working tree was clean, and the Python, MuJoCo and ariel versions | no |
+| `config.json` | The arm, every setting of the run, and the Python, MuJoCo and ariel versions | no |
 | `children.jsonl` | One line per evaluation (see the fields below) | no |
 | `generations.csv` | One row per generation (see the columns below) | no |
 | `adults.npz` | The surviving genomes of every generation, shape (generations + 1, 12, 260) | no |
@@ -248,7 +288,7 @@ analysis_results/final_spider/
 | `plateau.csv` | The plateau rule on each arm's mean curve | yes |
 | `step_span.csv`, `step_shape.csv` | Step direction and shape (see the columns below) | yes |
 | `replay.csv` | Recorded and replayed distance of each run's best controller | yes |
-| `fig_*.pdf`, `fig_*.png` | The three report figures. PDF for LaTeX, PNG for quick viewing | yes |
+| `fig_*.pdf`, `fig_*.png` | The three figures, `fig_fitness` and `fig_mechanism` as in the report. PDF for LaTeX, PNG for quick viewing | yes |
 
 ### Columns of `generations.csv`
 
@@ -343,14 +383,16 @@ uv run ruff format --config mutation_ab/lint.toml mutation_ab
 
 - Each kind of random choice (initial genomes, selection, mask, Gaussian draw,
   mixture replacement, random search) has its own stream derived from the seed,
-  and every EA arm draws from every stream in the same order. Two EA arms on the
-  same seed therefore differ only in how they turn the same numbers into a step
-  (there is a test for this).
+  and every generational EA arm draws from every stream in the same order. Two
+  EA arms on the same seed therefore differ only in how they turn the same
+  numbers into a step (there is a test for this).
 - Final runs use seeds 1000 to 1009; the σ runs use 1000 to 1004.
 - Running seeds in parallel gives the same runs as running them one after the
   other (there is a test for it).
 - `run` refuses an output folder that already exists, so a run never overwrites
   another.
+- The final runs record in their `config.json` the git commit they were made
+  with.
 - **Replays are exact only on the machine that ran the experiment.** There,
   every replayed distance in `replay.csv` matches the recorded one. On a
   different machine (macOS on Apple silicon, MuJoCo 3.8.0) small floating-point

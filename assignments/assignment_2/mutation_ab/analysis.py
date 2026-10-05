@@ -11,8 +11,8 @@ from pathlib import Path
 
 import numpy as np
 
-from mutation_ab.conditions import ARM_ORDER, NAMES
-from mutation_ab.config import ARM_RANDOM
+from mutation_ab.conditions import NAMES
+from mutation_ab.config import ARM_ORDER, ARM_RANDOM
 from mutation_ab.operators import KIND_GAUSSIAN
 from mutation_ab.plots import fig_fitness, fig_mechanism, fig_seeds
 from mutation_ab.records import Run, borrow_sigma_free_arms, load, write_csv
@@ -304,7 +304,7 @@ def main(argv: list[str] | None = None) -> int:
         write_csv(out / f"{name}.csv", rows)
 
     fig_fitness(runs, out)
-    fig_mechanism(runs, span, out)
+    fig_mechanism(runs, out)
     fig_seeds(runs, out)
     text = report(summary, stats, plateau, span, shape)
     (out / "report.txt").write_text(text + "\n")

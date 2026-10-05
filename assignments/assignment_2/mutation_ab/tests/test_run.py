@@ -7,7 +7,7 @@ import pytest
 
 from mutation_ab import run
 from mutation_ab.config import ALL_ARMS
-from mutation_ab.evaluate import UnstableSimulation
+from mutation_ab.simulation import UnstableSimulation
 
 TINY = ["--generations", "2", "--population", "4", "--duration", "0.2"]
 

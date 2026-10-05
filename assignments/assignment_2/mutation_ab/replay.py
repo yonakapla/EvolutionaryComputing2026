@@ -9,12 +9,9 @@ from pathlib import Path
 
 import numpy as np
 
-from mutation_ab.config import FACTORIAL_ARMS, RunConfig
-from mutation_ab.controller import genome_length, n_inputs
-from mutation_ab.evaluate import evaluate
-from mutation_ab.records import Run, genome_sha1, load, write_csv
-from mutation_ab.streams import make_streams
-from mutation_ab.world import build_model
+from mutation_ab.config import FACTORIAL_ARMS, RunConfig, make_streams
+from mutation_ab.records import Run, first_run, genome_sha1, load, write_csv
+from mutation_ab.simulation import build_model, evaluate, genome_length, n_inputs
 
 
 def config_from(stored: dict) -> RunConfig:
@@ -62,8 +59,8 @@ def best_genome(run: Run, length: int) -> tuple[np.ndarray, float]:
 
 def replay(root: Path) -> list[dict]:
     runs = load(root)
-    cfg = config_from(next(iter(next(iter(runs.values())).values())).config)
-    model, _ = build_model(cfg)
+    cfg = config_from(first_run(runs).config)
+    model = build_model(cfg)
     length = genome_length(n_inputs(model), cfg.hidden_size, model.nu)
     rows = []
     for arm, by_seed in runs.items():

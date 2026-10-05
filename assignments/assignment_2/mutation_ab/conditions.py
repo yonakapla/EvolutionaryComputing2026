@@ -1,4 +1,4 @@
-"""The order, names and drawing style of each arm in the tables and figures.
+"""The names and drawing style of each arm in the tables and figures.
 
 Colour shows the step direction (population blue, random orange); line style
 and marker fill show the step size (dashed and hollow for shrinking, solid and
@@ -12,18 +12,15 @@ from mutation_ab.config import (
     ARM_GAUSSIAN,
     ARM_MIXTURE,
     ARM_NORMALISED,
+    ARM_ORDER,
     ARM_RANDOM,
     ARM_SIZE_MATCHED,
 )
 
-REFERENCES = (ARM_MIXTURE, ARM_DE, ARM_DE_MATCHED)
-ARM_ORDER = (
-    ARM_DIFFERENCE,
-    ARM_SIZE_MATCHED,
-    ARM_NORMALISED,
-    ARM_GAUSSIAN,
-    *REFERENCES,
-    ARM_RANDOM,
+# The report discusses only canonical DE among the references in its figures;
+# the tables keep all of them.
+FIGURE_ARMS = tuple(
+    arm for arm in ARM_ORDER if arm not in (ARM_MIXTURE, ARM_DE_MATCHED)
 )
 SHRINKING_SIZE = (ARM_DIFFERENCE, ARM_SIZE_MATCHED)
 FIXED_SIZE = (ARM_NORMALISED, ARM_GAUSSIAN)

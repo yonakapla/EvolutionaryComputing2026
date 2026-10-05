@@ -7,19 +7,16 @@ from itertools import pairwise
 import numpy as np
 import pytest
 
-from conftest import (
-    FAKE_HASHES,
-    LENGTH,
-    TEST_ARMS,
-    children,
-    fake_evaluator,
-    make_fake_root,
+from conftest import LENGTH, TEST_ARMS, children, fake_evaluator, make_fake_root
+from mutation_ab.config import (
+    ARM_DE,
+    ARM_DIFFERENCE,
+    ARM_MIXTURE,
+    RunConfig,
+    make_streams,
 )
-from mutation_ab.config import ARM_DE, ARM_DIFFERENCE, ARM_MIXTURE, RunConfig
-from mutation_ab.de_arm import run_de
-from mutation_ab.initial import make_initial
+from mutation_ab.ea import make_initial, run_de
 from mutation_ab.records import RunRecorder
-from mutation_ab.streams import make_streams
 
 SMALL = {"generations": 5, "population_size": 6}
 
@@ -84,7 +81,7 @@ def test_de_replaces_an_adult_only_with_a_trial_at_least_as_good(tmp_path):
     cfg = RunConfig(seed=7, **SMALL)
     initial = make_initial(cfg, make_streams(7), fake_evaluator, LENGTH)
     run_dir = tmp_path / ARM_DE
-    recorder = RunRecorder(run_dir, cfg, ARM_DE, FAKE_HASHES)
+    recorder = RunRecorder(run_dir, cfg, ARM_DE)
     recorder.complete(
         run_de(cfg, ARM_DE, initial, fake_evaluator, make_streams(7), recorder)
     )

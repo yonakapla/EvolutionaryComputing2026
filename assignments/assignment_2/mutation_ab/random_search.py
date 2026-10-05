@@ -4,11 +4,10 @@ import time
 
 import numpy as np
 
-from mutation_ab.config import RunConfig
-from mutation_ab.initial import Evaluator, InitialPopulation, record_founders
+from mutation_ab.config import RunConfig, Streams
+from mutation_ab.ea import Evaluator, InitialPopulation, record_founders
 from mutation_ab.metrics import genotype_diversity
 from mutation_ab.records import RunRecorder, evaluation_record
-from mutation_ab.streams import Streams
 
 
 def _row(

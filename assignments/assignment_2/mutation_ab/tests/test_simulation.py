@@ -5,9 +5,15 @@ import numpy as np
 import pytest
 
 from mutation_ab.config import RunConfig
-from mutation_ab.controller import act, genome_length, observe, unpack
-from mutation_ab.evaluate import UnstableSimulation, evaluate
-from mutation_ab.world import build_model
+from mutation_ab.simulation import (
+    UnstableSimulation,
+    act,
+    build_model,
+    evaluate,
+    genome_length,
+    observe,
+    unpack,
+)
 
 SHORT = RunConfig(seed=1, duration=0.2)
 N_INPUTS, N_OUTPUTS = 33, 8  # spider_8
@@ -16,7 +22,7 @@ GENOME = genome_length(N_INPUTS, 6, N_OUTPUTS)
 
 @pytest.fixture(scope="module")
 def model():
-    return build_model(SHORT)[0]
+    return build_model(SHORT)
 
 
 def test_controller_fits_the_spider(model):

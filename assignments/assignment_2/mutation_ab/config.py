@@ -1,9 +1,9 @@
-"""Every setting of a run, and which arms exist."""
+"""Every setting of a run, the arms, and the random-number streams of a seed."""
 
-import hashlib
-import json
 import math
 from dataclasses import asdict, dataclass
+
+import numpy as np
 
 ARM_DIFFERENCE = "difference"
 ARM_MIXTURE = "mixture"
@@ -21,6 +21,18 @@ ARM_DE_MATCHED = "de_rand_1_bin_matched"  # the EA arms' F and Cr
 DE_ARMS = (ARM_DE, ARM_DE_MATCHED)
 
 ALL_ARMS = (*FACTORIAL_ARMS, ARM_MIXTURE, *DE_ARMS, ARM_RANDOM)
+
+# Order in tables and figures: shrinking-size cells, fixed-size cells,
+# references, baseline.
+REFERENCES = (ARM_MIXTURE, *DE_ARMS)
+ARM_ORDER = (
+    ARM_DIFFERENCE,
+    ARM_SIZE_MATCHED,
+    ARM_NORMALISED,
+    ARM_GAUSSIAN,
+    *REFERENCES,
+    ARM_RANDOM,
+)
 
 
 @dataclass(frozen=True)
@@ -105,6 +117,25 @@ class RunConfig:
     def to_dict(self) -> dict:
         return asdict(self)
 
-    def config_hash(self) -> str:
-        encoded = json.dumps(self.to_dict(), sort_keys=True).encode()
-        return hashlib.sha1(encoded).hexdigest()[:12]
+
+STREAM_NAMES = ("init", "selection", "mask", "gaussian", "replacement", "random_search")
+
+
+@dataclass(frozen=True)
+class Streams:
+    init: np.random.Generator
+    selection: np.random.Generator
+    mask: np.random.Generator
+    gaussian: np.random.Generator
+    replacement: np.random.Generator
+    random_search: np.random.Generator
+
+
+def make_streams(seed: int) -> Streams:
+    """Independent generators derived from one seed.
+
+    Keeping each kind of draw on its own stream means that one arm drawing, say,
+    an extra Gaussian number cannot shift the parents another arm selects.
+    """
+    children = np.random.SeedSequence(seed).spawn(len(STREAM_NAMES))
+    return Streams(*(np.random.default_rng(child) for child in children))

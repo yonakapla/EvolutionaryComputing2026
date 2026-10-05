@@ -10,16 +10,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import numpy as np
 
-from mutation_ab.config import ARM_DIFFERENCE, ARM_MIXTURE, ARM_RANDOM, RunConfig
-from mutation_ab.evaluate import EvalResult
-from mutation_ab.initial import make_initial
+from mutation_ab.config import (
+    ARM_DIFFERENCE,
+    ARM_MIXTURE,
+    ARM_RANDOM,
+    RunConfig,
+    make_streams,
+)
+from mutation_ab.ea import make_initial
 from mutation_ab.records import RunRecorder
 from mutation_ab.run import run_one
-from mutation_ab.streams import make_streams
+from mutation_ab.simulation import EvalResult
 
 LENGTH = 222  # genome length used with the fake evaluator
 TEST_ARMS = (ARM_DIFFERENCE, ARM_MIXTURE, ARM_RANDOM)
-FAKE_HASHES = {"model_sha1": "fake"}
 
 
 def fake_evaluator(genome: np.ndarray) -> EvalResult:
@@ -46,6 +50,6 @@ def make_fake_root(root: Path, seeds, arms=TEST_ARMS, **overrides) -> Path:
         cfg = RunConfig(seed=seed, **overrides)
         initial = make_initial(cfg, make_streams(seed), fake_evaluator, LENGTH)
         for arm in arms:
-            recorder = RunRecorder(root / f"seed_{seed}" / arm, cfg, arm, FAKE_HASHES)
+            recorder = RunRecorder(root / f"seed_{seed}" / arm, cfg, arm)
             recorder.complete(run_one(cfg, arm, initial, fake_evaluator, recorder))
     return root

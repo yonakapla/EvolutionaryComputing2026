@@ -24,6 +24,7 @@ from mutation_ab.config import (
     ARM_NORMALISED,
     ARM_SIZE_MATCHED,
     RunConfig,
+    make_streams,
 )
 from mutation_ab.metrics import rms, unique_genomes
 from mutation_ab.operators import (
@@ -34,7 +35,6 @@ from mutation_ab.operators import (
     propose_child,
     shaped_step,
 )
-from mutation_ab.streams import make_streams
 
 DIFFERENCE = np.array([0.3, 0.0, 0.0, -0.4])
 DRAW = np.array([0.15, -0.15, 0.15, -0.15])

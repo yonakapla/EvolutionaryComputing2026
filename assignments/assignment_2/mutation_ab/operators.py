@@ -11,9 +11,9 @@ from mutation_ab.config import (
     ARM_NORMALISED,
     ARM_SIZE_MATCHED,
     RunConfig,
+    Streams,
 )
 from mutation_ab.metrics import rms
-from mutation_ab.streams import Streams
 
 # A child's logged kind is its arm's step type, except for these.
 KIND_GAUSSIAN = "gaussian"
