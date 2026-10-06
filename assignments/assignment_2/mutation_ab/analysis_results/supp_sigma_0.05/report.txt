@@ -15,6 +15,7 @@ Tests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstra
   [vs random search] B normalised - random: -0.234 m [-0.618, +0.060]  positive 1/5  p=0.3125  Holm p=0.3750
   [vs random search] C size-matched - random: +0.308 m [+0.182, +0.453]  positive 5/5  p=0.0625  Holm p=0.2500
   [vs random search] D Gaussian - random: -0.557 m [-0.932, -0.154]  positive 1/5  p=0.1250  Holm p=0.3750
+  [references (unadjusted)] A difference - D Gaussian: +0.720 m [+0.348, +1.093]  positive 5/5  p=0.0625
 
 Plateau (rule fixed before the final run, on the mean curve)
   A difference         generation 40  gain last 50 gens 0.0000 m

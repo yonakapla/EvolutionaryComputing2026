@@ -125,12 +125,12 @@ uv run pytest mutation_ab/tests
 | `plots.py` | The three figures |
 | `replay.py` | Replays each run's best controller and compares the distance |
 | `analysis_results/` | The analysis of each experiment, in git |
-| `tests/` | 42 tests (49 with their parameter cases) for the code above |
+| `tests/` | 43 tests (50 with their parameter cases) for the code above |
 | `lint.toml` | Ruff settings for this folder (see below) |
 
 ## Reproducing the results
 
-The raw runs take about 400 MB per experiment and stay out of git (`results/` is
+The raw runs take 0.6 to 4 GB per experiment and stay out of git (`results/` is
 ignored). What git holds is each experiment's analysis in
 `analysis_results/<experiment>/`.
 
@@ -237,7 +237,9 @@ existed:
 - **Tests:** paired by seed, exact two-sided Wilcoxon signed-rank, Holm
   correction within the family {H2, H3, interaction} and within the baseline
   comparisons, bootstrap 95% intervals for the effects. The references are
-  compared descriptively.
+  compared descriptively. (The third Holm family in the report, the two
+  direction-within-size contrasts A − C and B − D, was added to the analysis
+  after this commit.)
 - **Plateau rule:** an arm has plateaued at the first generation from 40 on
   (checked every 10) at which its mean best-so-far improved by less than 5 mm
   over the previous 15 generations. An arm that never plateaus is compared at

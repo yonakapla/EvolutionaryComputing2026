@@ -31,6 +31,9 @@ REFERENCE_PAIRS = [
     (ARM_DE, ARM_RANDOM),
     (ARM_DE_MATCHED, ARM_RANDOM),
     (ARM_DE, ARM_DE_MATCHED),
+    # Appended last, so the bootstrap draws of the pairs above are unchanged.
+    (ARM_DIFFERENCE, ARM_GAUSSIAN),
+    (ARM_DE_MATCHED, ARM_GAUSSIAN),
 ]
 
 
