@@ -1,7 +1,9 @@
-import hashlib
-import json
+"""Every setting of a run, the arms, and the random-number streams of a seed."""
+
 import math
 from dataclasses import asdict, dataclass
+
+import numpy as np
 
 ARM_DIFFERENCE = "difference"
 ARM_MIXTURE = "mixture"
@@ -20,6 +22,18 @@ DE_ARMS = (ARM_DE, ARM_DE_MATCHED)
 
 ALL_ARMS = (*FACTORIAL_ARMS, ARM_MIXTURE, *DE_ARMS, ARM_RANDOM)
 
+# Order in tables and figures: shrinking-size cells, fixed-size cells,
+# references, baseline.
+REFERENCES = (ARM_MIXTURE, *DE_ARMS)
+ARM_ORDER = (
+    ARM_DIFFERENCE,
+    ARM_SIZE_MATCHED,
+    ARM_NORMALISED,
+    ARM_GAUSSIAN,
+    *REFERENCES,
+    ARM_RANDOM,
+)
+
 
 @dataclass(frozen=True)
 class RunConfig:
@@ -34,7 +48,8 @@ class RunConfig:
     phase_hz: float = 1.0
     init_sd: float = 0.5
     gaussian_sd: float = 0.15
-    # F(b - c) of two initial genomes has SD 0.15, the default Gaussian step; --gaussian-sd leaves F alone.
+    # F(b - c) of two initial genomes has SD 0.15, the default Gaussian step.
+    # --gaussian-sd leaves F alone.
     scale_f: float = 0.15 / (math.sqrt(2) * 0.5)
     crossover_rate: float = 0.2
     replacement_probability: float = 0.10
@@ -45,8 +60,10 @@ class RunConfig:
 
     def __post_init__(self) -> None:
         if self.population_size < max(3, self.tournament_size):
-            msg = "population_size must allow a parent, two distinct donors and the tournament"
-            raise ValueError(msg)
+            raise ValueError(
+                "population_size must allow a parent, two distinct donors "
+                "and the tournament"
+            )
         if self.generations < 1:
             raise ValueError("generations must be >= 1")
         if self.duration <= 0:
@@ -70,7 +87,7 @@ class RunConfig:
 
     @property
     def de_generations(self) -> int:
-        """Generations of canonical DE (population_size trials each) within the EA arms' budget."""
+        """Canonical DE generations (population_size trials each) in the EA budget."""
         return (self.budget - self.population_size) // self.population_size
 
     def budget_for(self, arm: str) -> int:
@@ -100,6 +117,25 @@ class RunConfig:
     def to_dict(self) -> dict:
         return asdict(self)
 
-    def config_hash(self) -> str:
-        encoded = json.dumps(self.to_dict(), sort_keys=True).encode()
-        return hashlib.sha1(encoded).hexdigest()[:12]
+
+STREAM_NAMES = ("init", "selection", "mask", "gaussian", "replacement", "random_search")
+
+
+@dataclass(frozen=True)
+class Streams:
+    init: np.random.Generator
+    selection: np.random.Generator
+    mask: np.random.Generator
+    gaussian: np.random.Generator
+    replacement: np.random.Generator
+    random_search: np.random.Generator
+
+
+def make_streams(seed: int) -> Streams:
+    """Independent generators derived from one seed.
+
+    Keeping each kind of draw on its own stream means that one arm drawing, say,
+    an extra Gaussian number cannot shift the parents another arm selects.
+    """
+    children = np.random.SeedSequence(seed).spawn(len(STREAM_NAMES))
+    return Streams(*(np.random.default_rng(child) for child in children))

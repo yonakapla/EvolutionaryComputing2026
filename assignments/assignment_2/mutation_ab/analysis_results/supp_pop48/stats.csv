@@ -1,1 +1,2 @@
-
+ci_high,ci_low,family,mean,n,p,p_holm,positive,test
+0.8818867701787835,0.5881148788869908,references (unadjusted),0.7387977437481228,10,0.001953125,,10,A difference - D Gaussian

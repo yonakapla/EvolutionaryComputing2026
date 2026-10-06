@@ -1,10 +1,19 @@
+"""How each arm proposes a child: parent and donor selection, the step, and
+the crossover mask.
+"""
+
 from dataclasses import dataclass
 
 import numpy as np
 
-from mutation_ab.config import ARM_DIFFERENCE, ARM_NORMALISED, ARM_SIZE_MATCHED, RunConfig
+from mutation_ab.config import (
+    ARM_DIFFERENCE,
+    ARM_NORMALISED,
+    ARM_SIZE_MATCHED,
+    RunConfig,
+    Streams,
+)
 from mutation_ab.metrics import rms
-from mutation_ab.streams import Streams
 
 # A child's logged kind is its arm's step type, except for these.
 KIND_GAUSSIAN = "gaussian"
@@ -13,6 +22,13 @@ KIND_DE = "de"
 
 @dataclass(frozen=True)
 class Proposal:
+    """A proposed child and how it came about.
+
+    proposal_rms is the size of the step before the crossover mask, change_rms
+    the size of what the child actually changed, and difference_rms the size of
+    F(b - c), whether or not the arm used it.
+    """
+
     child: np.ndarray
     parent: int
     donors: tuple[int, ...]
@@ -34,14 +50,21 @@ def draw_donors(n: int, parent: int, rng: np.random.Generator) -> tuple[int, int
 
 
 def binomial_mask(length: int, rate: float, rng: np.random.Generator) -> np.ndarray:
+    """Which weights the child takes from the step: each with probability
+    `rate`, plus one forced weight so that the child always differs."""
     mask = rng.random(length) < rate
     mask[rng.integers(length)] = True
     return mask
 
 
-def shaped_step(difference: np.ndarray, noise: np.ndarray, arm: str, target_rms: float) -> tuple[np.ndarray, str]:
-    """Turn F(b - c) into the arm's step. Sizes are RMS before the crossover mask, so a sparse
-    difference gives few, large changes. A zero difference falls back to the Gaussian draw."""
+def shaped_step(
+    difference: np.ndarray, noise: np.ndarray, arm: str, target_rms: float
+) -> tuple[np.ndarray, str]:
+    """Turn F(b - c) into the arm's step.
+
+    Sizes are RMS before the crossover mask, so a sparse difference gives few,
+    large changes. A zero difference falls back to the Gaussian draw.
+    """
     size = rms(difference)
     if arm == ARM_SIZE_MATCHED:
         return noise / rms(noise) * size, ARM_SIZE_MATCHED
@@ -52,11 +75,14 @@ def shaped_step(difference: np.ndarray, noise: np.ndarray, arm: str, target_rms:
     return difference, ARM_DIFFERENCE
 
 
-def propose_child(genomes: np.ndarray, fitness: np.ndarray, cfg: RunConfig, arm: str, streams: Streams) -> Proposal:
+def propose_child(
+    genomes: np.ndarray, fitness: np.ndarray, cfg: RunConfig, arm: str, streams: Streams
+) -> Proposal:
     length = genomes.shape[1]
     parent = tournament(fitness, cfg.tournament_size, streams.selection)
     b, c = draw_donors(len(genomes), parent, streams.selection)
-    # Every draw happens in every arm so that all arms consume their streams identically.
+    # Every draw happens in every arm so that all arms consume their streams
+    # identically.
     replace = streams.replacement.random() < cfg.replacement_probability_for(arm)
     noise = streams.gaussian.normal(0.0, cfg.gaussian_sd, length)
     difference = cfg.scale_f * (genomes[b] - genomes[c])
@@ -78,12 +104,18 @@ def propose_child(genomes: np.ndarray, fitness: np.ndarray, cfg: RunConfig, arm:
 
 
 def de_trial(
-    genomes: np.ndarray, target: int, scale_f: float, crossover_rate: float, streams: Streams
+    genomes: np.ndarray,
+    target: int,
+    scale_f: float,
+    crossover_rate: float,
+    streams: Streams,
 ) -> Proposal:
-    """Canonical DE/rand/1/bin trial for `target`: base and donors distinct and != target."""
+    """DE/rand/1/bin trial for `target`; base and donors are distinct from it."""
     length = genomes.shape[1]
     candidates = np.delete(np.arange(len(genomes)), target)
-    a, b, c = (int(i) for i in streams.selection.choice(candidates, size=3, replace=False))
+    a, b, c = (
+        int(i) for i in streams.selection.choice(candidates, size=3, replace=False)
+    )
     difference = scale_f * (genomes[b] - genomes[c])
     mask = binomial_mask(length, crossover_rate, streams.mask)
     trial = np.where(mask, genomes[a] + difference, genomes[target])
@@ -99,4 +131,5 @@ def de_trial(
 
 
 def elite_index(fitness: np.ndarray, uids: np.ndarray) -> int:
+    """The best individual; ties go to the oldest, so a rerun keeps the same one."""
     return int(np.lexsort((uids, fitness))[0])

@@ -7,7 +7,7 @@ Tests (positive mean = first-named worse; exact two-sided Wilcoxon; 95% bootstra
   [direction within size] fixed size: B - D: -0.119 m [-0.388, +0.121]  positive 6/10  p=0.7695  Holm p=0.7695
   [references (unadjusted)] DE (0.5, 0.9) - D Gaussian: -0.203 m [-0.382, -0.006]  positive 3/10  p=0.1055
 
-Plateau (PROTOCOL.md rule on the mean curve)
+Plateau (rule fixed before the final run, on the mean curve)
   B normalised         generation 350  gain last 50 gens 0.0033 m
   D Gaussian           generation 140  gain last 50 gens 0.0000 m
   DE (0.5, 0.9)        generation 360  gain last 50 gens 0.0004 m

@@ -1,0 +1,15 @@
+# Ruff settings for the experiment code. Not named ruff.toml on purpose: the
+# repository's pre-commit hooks would find a ruff.toml and start rewriting this
+# folder. Pass it explicitly, as shown in the README.
+line-length = 88
+target-version = "py312"
+fix = false
+
+[lint]
+select = ["E", "F", "W", "B", "I", "UP", "SIM"]
+
+[lint.isort]
+# Run from assignments/assignment_2, ruff cannot tell our package and the
+# tests' conftest from third-party code, so name both groups.
+known-first-party = ["mutation_ab", "conftest"]
+known-third-party = ["ariel"]
