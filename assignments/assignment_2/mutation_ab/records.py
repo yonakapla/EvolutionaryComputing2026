@@ -220,6 +220,11 @@ def load(root: Path) -> dict[str, dict[int, Run]]:
         raise ValueError(
             f"runs under {root} use {len(setups)} different setups, e.g. {examples}"
         )
+    if not runs:
+        raise ValueError(
+            f"no completed runs under {root}; the raw runs are not in git, "
+            "so run the experiment first (see README.md)"
+        )
     seed_sets = {arm: tuple(sorted(by_seed)) for arm, by_seed in runs.items()}
     if len(set(seed_sets.values())) != 1:
         raise ValueError(f"arms cover different seeds: {seed_sets}")
