@@ -35,12 +35,6 @@ All numbers in the report are in `analysis_results/final_spider/report.txt`.
 | H4 baseline: B and D beat random search, A and C do not | `stats.csv`, family `vs random search` |
 | References, compared descriptively | `stats.csv`, family `references (unadjusted)` |
 
-The design, hypotheses, tests and plateau rule were committed on 28 September
-2026 (commit `1b14f71`), before any final-run result existed. The third Holm
-family (A − C, B − D) was added to the analysis later. The supplementary runs
-were added on 29 September, after the final results, as checks rather than
-tests of the hypotheses.
-
 Run all commands from **`assignments/assignment_2`**.
 
 ## Setup
@@ -147,26 +141,6 @@ The experiment itself is in the first four; read them in this order.
 | `tests/` | 43 tests (50 with their parameter cases); `test_steps.py` works one step through all four arms |
 | `analysis_results/` | The analysis of each experiment, in git |
 | `lint.toml` | Ruff settings for this folder |
-
-## Where each part of the report comes from
-
-| Report | Code | Output (in `analysis_results/final_spider/`) |
-|---|---|---|
-| Sect. 2.1, task, controller and fitness | `simulation.py` | |
-| Sect. 2.2, proposal rules (Table 1) | `operators.py`: `propose_child`, `shaped_step`, `binomial_mask` | |
-| Sect. 2.2, generational EA with one elite | `ea.py`: `reproduce`, `survive`, `run_ea` | |
-| Sect. 2.2, reference conditions | `ea.run_de`, `operators.de_trial`, `RunConfig.replacement_probability_for`, `random_search.py` | |
-| Table 2, parameter settings | `config.RunConfig` | `config.json` of each run |
-| Sect. 2.4, plateau rule | `stats.plateau_generation` | `plateau.csv` |
-| Sect. 2.4, clones, success, realised steps | `analysis.seed_metrics`, `analysis.step_shape` | `per_seed.csv`, `summary.csv`, `step_shape.csv` |
-| Sect. 2.4, contrasts S, Q, I, Holm, bootstrap | `stats.statistical_tests` | `stats.csv` |
-| Figures 1 and 2 | `plots.fig_fitness`, `plots.fig_mechanism` | `fig_fitness`, `fig_mechanism` |
-| Tables 3 and 4 | `analysis.summary_rows`, `stats.plateaus`, `stats.statistical_tests` | `summary.csv`, `plateau.csv`, `stats.csv` |
-| Sect. 3.5, population 48 and twice the budget | `run.py` options | `analysis_results/supp_pop48/`, `analysis_results/supp_long/` |
-| Sect. 3.6, step scale σ = 0.05 and 0.3 | `run.py --gaussian-sd`, `analysis.py --sigma-free-arms-from` | `analysis_results/supp_sigma_*/` |
-| Sect. 2.4 and 3.6, replays | `replay.py` | `replay.csv` |
-
-`fig_seeds` and `step_span.csv` are not used in the report.
 
 ## What each result file contains
 
