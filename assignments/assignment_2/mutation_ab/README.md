@@ -52,11 +52,15 @@ MuJoCo requirement.
 
 ## Reproducing the results
 
-**What is in git:** the analysis of every experiment, in
-`analysis_results/<experiment>/` (tables, `report.txt`, figures, replays).
-**What is not:** the raw runs (0.6 to 4 GB per experiment, in the ignored
-`results/` folder). So the report's numbers can be read straight from
-`analysis_results/`, but recomputing them means rerunning the experiment.
+**The results are already in git.** Every table, figure and number in the
+report is in `analysis_results/<experiment>/`: start with
+`analysis_results/final_spider/report.txt`. Nothing needs to run to check them.
+
+**Rebuilding them needs the raw runs, which are not in git** (0.6 to 4 GB per
+experiment, written to the ignored `results/` folder). The analysis reads those
+runs, so recomputing the tables and figures means rerunning the experiment
+below; the analysis then reproduces the committed files byte for byte. The quick
+check shows the whole pipeline working on a tiny run in seconds.
 
 ### Quick check (about 20 seconds)
 
@@ -138,7 +142,7 @@ The experiment itself is in the first four; read them in this order.
 | `conditions.py` | Names, colours and line styles of the arms |
 | `metrics.py` | Step size and population diversity |
 | `replay.py` | Replays each run's best controller and compares the distance |
-| `tests/` | 43 tests (50 with their parameter cases); `test_steps.py` works one step through all four arms |
+| `tests/` | 44 tests (51 with their parameter cases); `test_steps.py` works one step through all four arms |
 | `analysis_results/` | The analysis of each experiment, in git |
 | `lint.toml` | Ruff settings for this folder |
 

@@ -52,6 +52,11 @@ def test_canonical_de_is_placed_at_the_ea_generation_with_equal_evaluations():
     assert equivalent_generations([12 + 12 * 733], 12)[0] == pytest.approx(799.6, 0.01)
 
 
+def test_a_folder_without_runs_says_so(tmp_path):
+    with pytest.raises(ValueError, match="no completed runs"):
+        load(tmp_path)
+
+
 def test_arms_must_cover_the_same_seeds(root, tmp_path):
     shutil.copytree(root / "seed_11" / "gaussian", tmp_path / "seed_1" / "gaussian")
     shutil.copytree(root / "seed_12", tmp_path / "seed_2")
