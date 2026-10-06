@@ -181,7 +181,7 @@ def fig_mechanism(runs, out: Path) -> None:
         axes[0].set_yscale("log")
         axes[0].set_ylim(floor / 2, 2)
         axes[0].set_ylabel("RMS of $F(b-c)$, median")
-        _title(axes[0], "(a) Step size")
+        _title(axes[0], "(a) Donor difference")
         axes[1].set_ylim(0, population + 0.8)
         axes[1].yaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
         axes[1].set_ylabel(f"distinct genotypes (of {population})")

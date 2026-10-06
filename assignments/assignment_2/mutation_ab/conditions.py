@@ -17,7 +17,7 @@ from mutation_ab.config import (
     ARM_SIZE_MATCHED,
 )
 
-# The report discusses only canonical DE among the references in its figures;
+# The figures show only DE (0.5, 0.9) among the references, to stay readable;
 # the tables keep all of them.
 FIGURE_ARMS = tuple(
     arm for arm in ARM_ORDER if arm not in (ARM_MIXTURE, ARM_DE_MATCHED)

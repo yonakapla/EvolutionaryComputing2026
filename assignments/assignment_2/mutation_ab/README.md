@@ -365,9 +365,10 @@ uv run ruff format --config mutation_ab/lint.toml mutation_ab
   differences are sparse, so B's steps change few weights by a lot (median 3
   weights, 0.40 each in `final_spider`), while D's change about a fifth of the
   weights by 0.15.
-- **Crossover rate 0.2 plus one forced weight.** Every child differs from its
-  parent, unless the step itself is zero, which is how a collapsed A or C
-  produces clones.
+- **Crossover rate 0.2 plus one forced weight.** A child equals its parent
+  only if the step is zero on every weight the mask selects: always for a
+  collapsed A or C, and often for B, whose sparse steps change only a few
+  weights (21% of B's children are clones).
 - **B falls back to the Gaussian draw when F(b − c) is zero.** With identical
   donors there is no direction to normalise. This happened for 3.3% of B's
   steps.
