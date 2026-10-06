@@ -4,6 +4,7 @@ import csv
 import hashlib
 import json
 import platform
+import subprocess
 import time
 import traceback
 from dataclasses import dataclass
@@ -70,6 +71,18 @@ def evaluation_record(
     }
 
 
+def git_commit() -> dict:
+    """The commit the code ran from, and whether it had uncommitted changes."""
+    here = Path(__file__).resolve().parent
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=here, capture_output=True, text=True
+    ).stdout.strip()
+    status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=here, capture_output=True, text=True
+    ).stdout
+    return {"commit": commit, "dirty": bool(status.strip())}
+
+
 class RunRecorder:
     """Writes one run's files as it goes, and marks it COMPLETE or FAILED.
 
@@ -82,6 +95,7 @@ class RunRecorder:
         meta = {
             "arm": arm,
             "config": cfg.to_dict(),
+            "git": git_commit(),
             "versions": {
                 "python": platform.python_version(),
                 "mujoco": mujoco.__version__,

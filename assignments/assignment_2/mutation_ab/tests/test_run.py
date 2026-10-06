@@ -19,6 +19,13 @@ def records(root, seed, arm):
     ]
 
 
+def test_runs_record_their_git_commit(tmp_path):
+    run.main(["--out", str(tmp_path), "--seeds", "900", "--arms", "gaussian", *TINY])
+    meta = json.loads((tmp_path / "seed_900" / "gaussian" / "config.json").read_text())
+    assert len(meta["git"]["commit"]) == 40
+    assert isinstance(meta["git"]["dirty"], bool)
+
+
 def test_existing_results_are_not_overwritten(tmp_path):
     existing = tmp_path / "seed_900"
     existing.mkdir()

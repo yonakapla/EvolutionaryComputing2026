@@ -107,26 +107,28 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Step size x step direction experiment (see README.md)"
     )
+    defaults = RunConfig(seed=0)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--seeds", required=True, help="e.g. 700-705 or 800,801")
+    parser.add_argument("--generations", type=int, default=defaults.generations)
+    parser.add_argument("--population", type=int, default=defaults.population_size)
+    parser.add_argument("--duration", type=float, default=defaults.duration)
     parser.add_argument(
-        "--generations", type=int, default=RunConfig(seed=0).generations
+        "--workers",
+        type=int,
+        default=1,
+        help="seeds run in parallel; the arms of one seed run one after another",
     )
-    parser.add_argument("--population", type=int, default=12)
-    parser.add_argument("--duration", type=float, default=15.0)
-    parser.add_argument("--workers", type=int, default=1)
     parser.add_argument(
         "--arms",
         default=",".join(ALL_ARMS),
         help=f"comma-separated; any of {', '.join(ALL_ARMS)}",
     )
-    parser.add_argument(
-        "--body", default=RunConfig(seed=0).body, help="a John Set body"
-    )
+    parser.add_argument("--body", default=defaults.body, help="a John Set body")
     parser.add_argument(
         "--gaussian-sd",
         type=float,
-        default=RunConfig(seed=0).gaussian_sd,
+        default=defaults.gaussian_sd,
         help="Gaussian step SD, also the normalised arm's fixed step size "
         "(F stays tied to 0.15)",
     )

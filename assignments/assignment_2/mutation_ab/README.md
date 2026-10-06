@@ -392,12 +392,12 @@ uv run ruff format --config mutation_ab/lint.toml mutation_ab
   other (there is a test for it).
 - `run` refuses an output folder that already exists, so a run never overwrites
   another.
-- The final runs record in their `config.json` the git commit they were made
-  with.
+- Every run records in its `config.json` the git commit it was made with, and
+  whether the code had uncommitted changes.
 - **Replays are exact only on the machine that ran the experiment.** There,
   every replayed distance in `replay.csv` matches the recorded one. On a
-  different machine (macOS on Apple silicon, MuJoCo 3.8.0) small floating-point
-  differences grow over a 15-second episode, and single replays differ by up
+  different machine small floating-point differences grow over a 15-second
+  episode, and single replays differ by up
   to 1.1 m. The conclusion holds: the size contrast from those replays is
   +0.95 m, positive on all 10 seeds, against +0.96 m recorded.
 - Library versions are pinned by `uv.lock`.
