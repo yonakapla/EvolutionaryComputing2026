@@ -1,4 +1,4 @@
-"""The worked example from the README: one population difference and what each
+"""A worked example: one population difference and what each
 cell of the 2x2 makes of it.
 
 F(b - c) = [0.3, 0, 0, -0.4] has RMS 0.25. The Gaussian draw is

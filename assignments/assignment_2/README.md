@@ -23,7 +23,7 @@ budget of 8,812 evaluations.
 | `de_rand_1_bin_matched` | canonical DE with the EA arms' F and Cr | population | reference: DE matched |
 | `random` | fresh random genomes | none | baseline |
 
-All numbers in the report are in `analysis_results/final_spider/report.txt`.
+All numbers in the report are in `mutation_ab/analysis_results/final_spider/report.txt`.
 
 ### Hypotheses
 
@@ -35,29 +35,28 @@ All numbers in the report are in `analysis_results/final_spider/report.txt`.
 | H4 baseline: B and D beat random search, A and C do not | `stats.csv`, family `vs random search` |
 | References, compared descriptively | `stats.csv`, family `references (unadjusted)` |
 
-Run all commands from **`assignments/assignment_2`**.
-
 ## Setup
 
 You need Python 3.12 or newer and [uv](https://docs.astral.sh/uv/). From the
 repository root:
 
 ```bash
-uv venv    # create the virtual environment
-uv sync    # install ariel and every dependency, at the versions in uv.lock
+uv venv                      # create the virtual environment
+uv sync                      # install ariel and every dependency, at the versions in uv.lock
+cd assignments/assignment_2  # the folder of this README: run every command below from here
 ```
 
-The root [`README.md`](../../../README.md) documents the ariel framework and its
-MuJoCo requirement.
+All the code is in `mutation_ab/`. The root [`README.md`](../../README.md)
+documents the ariel framework and its MuJoCo requirement.
 
 ## Reproducing the results
 
 **The results are already in git.** Every table, figure and number in the
-report is in `analysis_results/<experiment>/`: start with
-`analysis_results/final_spider/report.txt`. Nothing needs to run to check them.
+report is in `mutation_ab/analysis_results/<experiment>/`: start with
+`mutation_ab/analysis_results/final_spider/report.txt`. Nothing needs to run to check them.
 
 **Rebuilding them needs the raw runs, which are not in git** (0.6 to 4 GB per
-experiment, written to the ignored `results/` folder). The analysis reads those
+experiment, written to the ignored `mutation_ab/results/` folder). The analysis reads those
 runs, so recomputing the tables and figures means rerunning the experiment
 below; the analysis then reproduces the committed files byte for byte. The quick
 check shows the whole pipeline working on a tiny run in seconds.
@@ -125,7 +124,7 @@ uv run python -m mutation_ab.analysis mutation_ab/results/supp_sigma_0.05 --out 
 
 ## Files
 
-The experiment itself is in the first four; read them in this order.
+All files are in `mutation_ab/`. The experiment itself is in the first four; read them in this order.
 
 | File | What it does |
 |---|---|
@@ -149,10 +148,10 @@ The experiment itself is in the first four; read them in this order.
 ## What each result file contains
 
 ```
-results/final_spider/seed_1000/
+mutation_ab/results/final_spider/seed_1000/
   difference/  config.json  children.jsonl  generations.csv  adults.npz  steps.npz  ariel.db  COMPLETE
   ...          (one folder per arm; random search has no adults.npz or steps.npz)
-analysis_results/final_spider/
+mutation_ab/analysis_results/final_spider/
   report.txt  summary.csv  per_seed.csv  stats.csv  plateau.csv  step_span.csv  step_shape.csv  replay.csv
   fig_fitness  fig_mechanism  fig_seeds  (.pdf and .png)
 ```
